@@ -593,4 +593,18 @@
                 this.style.color = 'var(--text-primary)';
                 var tab = this.dataset.tab;
                 renderTab(tab, contentContainer);
-                var addBtnEl = document.getElementById('moments-add-btn
+                var addBtnEl = document.getElementById('moments-add-btn');
+                if (addBtnEl) addBtnEl.style.display = tab === 'me' ? 'flex' : 'none';
+            });
+        });
+    };
+
+    // 页面加载时生成梦角动态
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            _generatePartnerPosts();
+        }, 1500);
+    });
+
+    console.log('[朋友圈] 模块已加载');
+})();
