@@ -1,4 +1,4 @@
-// moments.js - 朋友圈功能（含背景图设置）
+// moments.js - 朋友圈功能（完整版）
 (function() {
     'use strict';
 
@@ -9,7 +9,6 @@
     const BG_KEY = 'moments_bg_image';
     const MAX_POSTS = 100;
 
-    // 获取字卡库
     function _getReplyCards() {
         let cards = [];
         if (window.customReplies && Array.isArray(window.customReplies)) {
@@ -73,37 +72,23 @@
         }
     }
 
-    // ---- 背景图管理 ----
     function _getBgImage() {
-        try {
-            return localStorage.getItem(BG_KEY) || '';
-        } catch { return ''; }
+        try { return localStorage.getItem(BG_KEY) || ''; } catch { return ''; }
     }
-    function _setBgImage(data) {
-        localStorage.setItem(BG_KEY, data);
-    }
-    function _clearBgImage() {
-        localStorage.removeItem(BG_KEY);
-    }
+    function _setBgImage(data) { localStorage.setItem(BG_KEY, data); }
+    function _clearBgImage() { localStorage.removeItem(BG_KEY); }
 
     // =============================================
     // 2. 数据管理
     // =============================================
     function _getData() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { posts: [], lastGenerateDate: '' };
-        } catch { return { posts: [], lastGenerateDate: '' }; }
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { posts: [], lastGenerateDate: '' }; } catch { return { posts: [], lastGenerateDate: '' }; }
     }
-
-    function _setData(data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }
-
+    function _setData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     function _getPosts() {
         const data = _getData();
         return data.posts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
-
     function _addPost(author, text, timestamp) {
         const data = _getData();
         const post = {
@@ -116,59 +101,39 @@
             comments: []
         };
         data.posts.unshift(post);
-        if (data.posts.length > MAX_POSTS) {
-            data.posts = data.posts.slice(0, MAX_POSTS);
-        }
+        if (data.posts.length > MAX_POSTS) data.posts = data.posts.slice(0, MAX_POSTS);
         _setData(data);
         return post;
     }
-
     function _deletePost(postId) {
         const data = _getData();
         data.posts = data.posts.filter(p => p.id !== postId);
         _setData(data);
     }
-
     function _toggleLike(postId) {
         const data = _getData();
         const post = data.posts.find(p => p.id === postId);
         if (!post) return;
-        if (post.likedByMe) {
-            post.likes -= 1;
-            post.likedByMe = false;
-        } else {
-            post.likes += 1;
-            post.likedByMe = true;
-        }
+        if (post.likedByMe) { post.likes -= 1; post.likedByMe = false; }
+        else { post.likes += 1; post.likedByMe = true; }
         _setData(data);
     }
-
     function _addComment(postId, author, text) {
         const data = _getData();
         const post = data.posts.find(p => p.id === postId);
         if (!post) return null;
-        const comment = {
-            id: _generateId(),
-            author: author,
-            text: text.trim(),
-            timestamp: new Date().toISOString(),
-            reply: null
-        };
+        const comment = { id: _generateId(), author: author, text: text.trim(), timestamp: new Date().toISOString(), reply: null };
         post.comments.push(comment);
         _setData(data);
         return comment;
     }
-
     function _addReplyToComment(postId, commentId, replyText) {
         const data = _getData();
         const post = data.posts.find(p => p.id === postId);
         if (!post) return;
         const comment = post.comments.find(c => c.id === commentId);
         if (!comment) return;
-        comment.reply = {
-            text: replyText,
-            timestamp: new Date().toISOString()
-        };
+        comment.reply = { text: replyText, timestamp: new Date().toISOString() };
         _setData(data);
     }
 
@@ -251,7 +216,6 @@
             border:1px solid var(--border-color);
         `;
 
-        // ---- 标题栏（含背景图设置按钮） ----
         const header = document.createElement('div');
         header.style.cssText = `
             display:flex;justify-content:space-between;align-items:center;
@@ -270,40 +234,27 @@
         `;
         inner.appendChild(header);
 
-        // ---- Tab切换 ----
         const tabBar = document.createElement('div');
-        tabBar.style.cssText = `
-            display:flex;border-bottom:1px solid var(--border-color);
-            flex-shrink:0;
-        `;
+        tabBar.style.cssText = `display:flex;border-bottom:1px solid var(--border-color);flex-shrink:0;`;
         tabBar.innerHTML = `
             <button class="moments-tab active" data-tab="me" style="flex:1;padding:10px;border:none;background:var(--secondary-bg);font-weight:700;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);">我的</button>
             <button class="moments-tab" data-tab="partner" style="flex:1;padding:10px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);">${_getPartnerName()}的</button>
         `;
         inner.appendChild(tabBar);
 
-        // ---- 内容容器（应用背景图） ----
         const contentContainer = document.createElement('div');
         contentContainer.id = 'moments-content';
+        const bg = _getBgImage();
         contentContainer.style.cssText = `
             flex:1;overflow-y:auto;padding:12px 16px;
-            background-image: url('${_getBgImage()}');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+            ${bg ? `background-image: url('${bg}');background-size:cover;background-position:center;background-repeat:no-repeat;` : 'background:var(--secondary-bg);'}
             transition: background-image 0.3s ease;
         `;
-        // 如果没有背景图，加一个纯色背景
-        if (!_getBgImage()) {
-            contentContainer.style.background = 'var(--secondary-bg)';
-        }
 
         renderTab('me', contentContainer);
         inner.appendChild(contentContainer);
 
-        // ---- 底部操作 ----
         const footer = document.createElement('div');
-        footer.id = 'moments-footer';
         footer.style.cssText = `
             display:flex;justify-content:flex-end;padding:12px 20px;
             border-top:1px solid var(--border-color);
@@ -322,26 +273,21 @@
         `;
         addBtn.textContent = '+';
         addBtn.title = '发布新动态';
-        addBtn.onclick = function() {
-            showPublishModal();
-        };
+        addBtn.onclick = function() { showPublishModal(); };
         footer.appendChild(addBtn);
         inner.appendChild(footer);
 
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        // ---- 事件绑定 ----
         document.getElementById('moments-close').onclick = () => wrap.remove();
         wrap.addEventListener('click', (e) => { if (e.target === wrap) wrap.remove(); });
 
-        // 背景图设置按钮
         document.getElementById('moments-bg-btn').onclick = function(e) {
             e.stopPropagation();
             showBgSettings();
         };
 
-        // Tab切换
         tabBar.querySelectorAll('.moments-tab').forEach(btn => {
             btn.addEventListener('click', function() {
                 tabBar.querySelectorAll('.moments-tab').forEach(b => {
@@ -352,20 +298,16 @@
                 this.classList.add('active');
                 this.style.background = 'var(--secondary-bg)';
                 this.style.color = 'var(--text-primary)';
-
                 const tab = this.dataset.tab;
                 renderTab(tab, contentContainer);
                 const addBtnEl = document.getElementById('moments-add-btn');
-                if (addBtnEl) {
-                    addBtnEl.style.display = tab === 'me' ? 'flex' : 'none';
-                }
+                if (addBtnEl) addBtnEl.style.display = tab === 'me' ? 'flex' : 'none';
             });
             if (btn.dataset.tab === 'me') {
                 btn.style.background = 'var(--secondary-bg)';
                 btn.style.color = 'var(--text-primary)';
             }
         });
-
         const addBtnInit = document.getElementById('moments-add-btn');
         if (addBtnInit) addBtnInit.style.display = 'flex';
     };
@@ -429,7 +371,6 @@
         document.getElementById('bg-cancel').onclick = close;
         wrap.onclick = (e) => { if (e.target === wrap) close(); };
 
-        // 上传图片
         document.getElementById('bg-upload-btn').onclick = function() {
             document.getElementById('bg-file-input').click();
         };
@@ -443,14 +384,12 @@
                 const wrap2 = document.getElementById('bg-preview-wrap');
                 if (preview) preview.src = data;
                 if (wrap2) wrap2.style.display = 'block';
-                // 保存到临时变量，等点击"应用"时再保存
                 window._tempBgData = data;
                 _notify('图片已加载，点击"应用到朋友圈"生效', 'success', 2000);
             };
             reader.readAsDataURL(file);
         };
 
-        // URL方式
         document.getElementById('bg-url-btn').onclick = function() {
             const url = prompt('请输入图片URL地址（支持 https://...）');
             if (url && url.trim()) {
@@ -463,7 +402,6 @@
             }
         };
 
-        // 恢复默认
         document.getElementById('bg-reset-btn').onclick = function() {
             if (confirm('确定恢复默认背景吗？')) {
                 _clearBgImage();
@@ -476,13 +414,11 @@
             }
         };
 
-        // 应用
         document.getElementById('bg-apply').onclick = function() {
             const data = window._tempBgData;
             if (data) {
                 _setBgImage(data);
             } else {
-                // 如果用户没有新上传，但预览区有图片，可能是之前已有的
                 const preview = document.getElementById('bg-preview-img');
                 if (preview && preview.src && preview.src !== '') {
                     _setBgImage(preview.src);
@@ -491,7 +427,6 @@
                     return;
                 }
             }
-            // 更新朋友圈内容容器背景
             const content = document.getElementById('moments-content');
             if (content) {
                 const bg = _getBgImage();
@@ -509,7 +444,6 @@
             _notify('背景已更新 ✨', 'success');
         };
 
-        // 如果已经有背景图，自动显示预览
         const existingBg = _getBgImage();
         if (existingBg) {
             const preview = document.getElementById('bg-preview-img');
@@ -543,7 +477,6 @@
             const avatarIcon = isMe ? '👤' : '🌸';
             const name = isMe ? _getMyName() : _getPartnerName();
             const time = formatTime(post.timestamp);
-            const likeText = post.likes > 0 ? `❤️ ${post.likes}` : '❤️ 0';
             const commentCount = post.comments.length;
 
             html += `
@@ -593,7 +526,6 @@
 
         container.innerHTML = html;
 
-        // 绑定事件
         container.querySelectorAll('.moments-like-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -671,9 +603,7 @@
             close();
             const container = document.getElementById('moments-content');
             const activeTab = document.querySelector('.moments-tab.active');
-            if (container && activeTab) {
-                renderTab(activeTab.dataset.tab, container);
-            }
+            if (container && activeTab) renderTab(activeTab.dataset.tab, container);
             _notify('发布成功 ✨', 'success');
             _sendAsMessage(`📱 我发了一条新动态：${text}`, true);
         };
@@ -725,4 +655,29 @@
 
             const posts = _getPosts();
             const post = posts.find(p => p.id === postId);
-            if
+            if (!post) { _notify('帖子不存在', 'error'); return; }
+
+            const comment = _addComment(postId, 'me', text);
+            if (!comment) { _notify('评论失败', 'error'); return; }
+
+            close();
+            const container = document.getElementById('moments-content');
+            const activeTab = document.querySelector('.moments-tab.active');
+            if (container && activeTab) renderTab(activeTab.dataset.tab, container);
+            _notify('评论已发送', 'success');
+
+            // 如果帖子是对方的（partner），触发对方回复
+            if (post.author === 'partner') {
+                const delay = 60000 + Math.random() * 540000;
+                setTimeout(() => {
+                    const freshPosts = _getPosts();
+                    const freshPost = freshPosts.find(p => p.id === postId);
+                    if (!freshPost) return;
+                    const latestComment = freshPost.comments[freshPost.comments.length - 1];
+                    if (latestComment && latestComment.author === 'me' && !latestComment.reply) {
+                        const cards = _getReplyCards();
+                        const count = 1 + Math.floor(Math.random() * 3);
+                        const shuffled = cards.sort(() => Math.random() - 0.5);
+                        const picked = shuffled.slice(0, count);
+                        const replyText = picked.join('');
+                        _addReplyToComment(postId, latestComment
