@@ -1,7 +1,7 @@
-let envelopeData = { outbox: [], inbox: [] }; 
+let envelopeData = { outbox: [], inbox: [] };
 let currentEnvTab = 'outbox';
-let editingEnvId = null; 
-let editingEnvSection = null; 
+let editingEnvId = null;
+let editingEnvSection = null;
 
 // =============================================
 // 时空来信数据
@@ -289,9 +289,9 @@ function _escHtml(s) {
 // =============================================
 
 async function loadEnvelopeData() {
-    const saved = await localforage.getItem(getStorageKey('envelopeData'));
+    var saved = await localforage.getItem(getStorageKey('envelopeData'));
     if (saved) envelopeData = saved;
-    const oldPending = await localforage.getItem(getStorageKey('pending_envelope'));
+    var oldPending = await localforage.getItem(getStorageKey('pending_envelope'));
     if (oldPending && envelopeData.outbox.length === 0) {
         envelopeData.outbox.push({
             id: 'legacy_' + Date.now(),
@@ -311,15 +311,15 @@ function saveEnvelopeData() {
 
 async function checkEnvelopeStatus() {
     await loadEnvelopeData();
-    const now = Date.now();
-    let changed = false;
-    let newReplyLetter = null;
-    envelopeData.outbox.forEach(letter => {
+    var now = Date.now();
+    var changed = false;
+    var newReplyLetter = null;
+    envelopeData.outbox.forEach(function(letter) {
         if (letter.status === 'pending' && now >= letter.replyTime) {
             letter.status = 'replied';
-            const replyContent = generateEnvelopeReplyText();
-            const replyId = 'reply_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
-            const inboxLetter = {
+            var replyContent = generateEnvelopeReplyText();
+            var replyId = 'reply_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
+            var inboxLetter = {
                 id: replyId,
                 refId: letter.id,
                 originalContent: letter.content,
@@ -340,35 +340,23 @@ async function checkEnvelopeStatus() {
 }
 
 function showEnvelopeReplyPopup(letter) {
-    const existing = document.getElementById('envelope-reply-popup');
+    var existing = document.getElementById('envelope-reply-popup');
     if (existing) existing.remove();
-    const popup = document.createElement('div');
+    var popup = document.createElement('div');
     popup.id = 'envelope-reply-popup';
     popup.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--secondary-bg);border:1px solid var(--border-color);border-radius:20px;padding:18px 20px;z-index:8000;max-width:320px;width:88%;box-shadow:0 8px 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:12px;animation:slideUpNotif 0.4s cubic-bezier(0.22,1,0.36,1);';
-    popup.innerHTML = `
-        <style>@keyframes slideUpNotif{from{opacity:0;transform:translateX(-50%) translateY(24px) scale(0.9)}60%{transform:translateX(-50%) translateY(-4px) scale(1.02)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}</style>
-        <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:26px;">💌</span>
-            <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text-primary);">收到了一封回信</div>
-                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;opacity:0.8;">Ta 给你写了回信，快去看看吧~</div>
-            </div>
-        </div>
-        <div style="display:flex;gap:8px;">
-            <button onclick="document.getElementById('envelope-reply-popup').remove();" style="flex:1;padding:8px 0;border-radius:12px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">稍后查看</button>
-            <button onclick="openEnvelopeAndViewReply('${letter.id}');" style="flex:2;padding:8px 0;border-radius:12px;border:none;background:var(--accent-color);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">立即阅读 ✉</button>
-        </div>`;
+    popup.innerHTML = '<style>@keyframes slideUpNotif{from{opacity:0;transform:translateX(-50%) translateY(24px) scale(0.9)}60%{transform:translateX(-50%) translateY(-4px) scale(1.02)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}</style><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:26px;">💌</span><div><div style="font-size:14px;font-weight:700;color:var(--text-primary);">收到了一封回信</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;opacity:0.8;">Ta 给你写了回信，快去看看吧~</div></div></div><div style="display:flex;gap:8px;"><button onclick="document.getElementById(\'envelope-reply-popup\').remove();" style="flex:1;padding:8px 0;border-radius:12px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">稍后查看</button><button onclick="openEnvelopeAndViewReply(\'' + letter.id + '\');" style="flex:2;padding:8px 0;border-radius:12px;border:none;background:var(--accent-color);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">立即阅读 ✉</button></div>';
     document.body.appendChild(popup);
-    setTimeout(() => { if (popup.parentNode) popup.remove(); }, 8000);
+    setTimeout(function() { if (popup.parentNode) popup.remove(); }, 8000);
 }
 
-const APPEARANCE_PANEL_TITLES = {
+var APPEARANCE_PANEL_TITLES = {
     'theme': '主题配色', 'font': '字体设置', 'background': '聊天背景',
     'bubble': '气泡样式', 'avatar': '聊天头像', 'css': '自定义CSS',
     'font-bg': '背景 & 字体', 'bubble-css': '气泡 & CSS'
 };
 window.showAppearancePanel = function(panel) {
-    const panelMap = {
+    var panelMap = {
         'font-bg': ['font', 'background'],
         'bubble-css': ['bubble', 'css']
     };
@@ -379,22 +367,22 @@ window.showAppearancePanel = function(panel) {
     if (galleryBanner) galleryBanner.style.display = 'none';
     document.getElementById('appearance-panel-container').style.display = 'block';
     document.getElementById('appearance-panel-title').textContent = APPEARANCE_PANEL_TITLES[panel] || panel;
-    document.querySelectorAll('.appearance-sub-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.appearance-sub-panel').forEach(function(p) { p.style.display = 'none'; });
     if (panelMap[panel]) {
-        panelMap[panel].forEach(sub => {
-            const target = document.getElementById('appearance-panel-' + sub);
+        panelMap[panel].forEach(function(sub) {
+            var target = document.getElementById('appearance-panel-' + sub);
             if (target) target.style.display = 'block';
         });
     } else {
-        const target = document.getElementById('appearance-panel-' + panel);
+        var target = document.getElementById('appearance-panel-' + panel);
         if (target) target.style.display = 'block';
     }
-    if (panel === 'bubble' || panel === 'bubble-css') { setTimeout(() => { if (typeof window.updateBubblePreviewFn === 'function') window.updateBubblePreviewFn(); }, 50); }
+    if (panel === 'bubble' || panel === 'bubble-css') { setTimeout(function() { if (typeof window.updateBubblePreviewFn === 'function') window.updateBubblePreviewFn(); }, 50); }
 };
 window.hideAppearancePanel = function() {
     document.getElementById('appearance-nav-grid').style.display = 'grid';
     document.getElementById('appearance-panel-container').style.display = 'none';
-    document.querySelectorAll('.appearance-sub-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.appearance-sub-panel').forEach(function(p) { p.style.display = 'none'; });
     var unBtn = document.getElementById('update-notice-btn');
     if (unBtn) unBtn.style.display = 'flex';
     var galleryBanner = document.getElementById('gallery-banner-entry');
@@ -402,30 +390,41 @@ window.hideAppearancePanel = function() {
 };
 
 window.openEnvelopeAndViewReply = function(replyId) {
-    const popup = document.getElementById('envelope-reply-popup');
+    var popup = document.getElementById('envelope-reply-popup');
     if (popup) popup.remove();
-    const envelopeModal = document.getElementById('envelope-modal');
+    var envelopeModal = document.getElementById('envelope-modal');
     showModal(envelopeModal);
-    setTimeout(() => {
+    setTimeout(function() {
         switchEnvTab('inbox');
         viewEnvLetter('inbox', replyId);
     }, 200);
 };
 
 function generateEnvelopeReplyText() {
-    const sourcePool = [...customReplies];
-    const sentenceCount = Math.floor(Math.random() * (12 - 8 + 1)) + 8;
-    let replyContent = "";
-    for (let i = 0; i < sentenceCount; i++) {
-        const randomSentence = sourcePool[Math.floor(Math.random() * sourcePool.length)];
-        const punctuation = Math.random() < 0.2 ? "！" : (Math.random() < 0.2 ? "..." : "。");
+    var sourcePool = [].concat(customReplies);
+    var sentenceCount = Math.floor(Math.random() * (12 - 8 + 1)) + 8;
+    var replyContent = "";
+    for (var i = 0; i < sentenceCount; i++) {
+        var randomSentence = sourcePool[Math.floor(Math.random() * sourcePool.length)];
+        var punctuation = Math.random() < 0.2 ? "！" : (Math.random() < 0.2 ? "..." : "。");
         replyContent += randomSentence + punctuation;
     }
     return replyContent;
 }
 
 // =============================================
-// switchEnvTab - 统一三个 Tab 样式
+// 统一空状态样式
+// =============================================
+function _createEmptyHTML(iconSvg, title, desc) {
+    return '<div style="text-align:center;padding:50px 20px;color:var(--text-secondary);">' +
+        iconSvg +
+        '<div style="font-size:14px;font-weight:500;margin-top:8px;">' + title + '</div>' +
+        '<div style="font-size:12px;margin-top:6px;opacity:0.6;">' + desc + '</div>' +
+    '</div>';
+}
+
+// =============================================
+// switchEnvTab
 // =============================================
 window.switchEnvTab = function(tab) {
     currentEnvTab = tab;
@@ -492,11 +491,11 @@ function renderOutboxList() {
     var list = document.getElementById('env-outbox-list');
     if (!list) return;
     if (envelopeData.outbox.length === 0) {
-        list.innerHTML = '<div class="env-empty">' +
-            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>' +
-            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有寄出任何信件</div>' +
-            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">提笔写下心意，寄送给Ta吧~</div>' +
-        '</div>';
+        list.innerHTML = _createEmptyHTML(
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:4px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>',
+            '还没有寄出任何信件',
+            '提笔写下心意，寄送给Ta吧~'
+        );
         return;
     }
     var html = '';
@@ -506,29 +505,10 @@ function renderOutboxList() {
         var date = new Date(letter.sentTime).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
         var isPending = letter.status === 'pending';
         var replyTime = isPending ? new Date(letter.replyTime).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
-        var statusIcon = isPending
-            ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-            : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+        var statusIcon = isPending ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
         var statusText = isPending ? statusIcon + ' 预计 ' + replyTime + ' 回信' : statusIcon + ' 已收到回信';
         var preview = letter.content.length > 38 ? letter.content.substring(0, 38) + '…' : letter.content;
-        html += '<div class="env-letter-item" onclick="viewEnvLetter(\'outbox\',\'' + letter.id + '\')">' +
-            '<div class="env-letter-header">' +
-                '<div class="env-letter-header-from">' +
-                    '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>' +
-                    '寄出 · ' + date +
-                '</div>' +
-                '<div class="env-stamp">' +
-                    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
-                '</div>' +
-            '</div>' +
-            '<div class="env-letter-body">' +
-                '<div class="env-letter-preview">' + preview + '</div>' +
-                '<div class="env-letter-status">' + statusText + '</div>' +
-            '</div>' +
-            '<button class="env-letter-delete-btn" onclick="deleteEnvLetter(event,\'outbox\',\'' + letter.id + '\')">' +
-                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-            '</button>' +
-        '</div>';
+        html += '<div class="env-letter-item" onclick="viewEnvLetter(\'outbox\',\'' + letter.id + '\')"><div class="env-letter-header"><div class="env-letter-header-from"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>寄出 · ' + date + '</div><div class="env-stamp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div></div><div class="env-letter-body"><div class="env-letter-preview">' + preview + '</div><div class="env-letter-status">' + statusText + '</div></div><button class="env-letter-delete-btn" onclick="deleteEnvLetter(event,\'outbox\',\'' + letter.id + '\')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
     }
     list.innerHTML = html;
 }
@@ -537,11 +517,11 @@ function renderInboxList() {
     var list = document.getElementById('env-inbox-list');
     if (!list) return;
     if (envelopeData.inbox.length === 0) {
-        list.innerHTML = '<div class="env-empty">' +
-            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/><polyline points="22 13 12 13"/><path d="M19 16l-5-3-5 3"/></svg>' +
-            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有收到回信</div>' +
-            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">对方正在认真回复中，请稍候~</div>' +
-        '</div>';
+        list.innerHTML = _createEmptyHTML(
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:4px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/><polyline points="22 13 12 13"/><path d="M19 16l-5-3-5 3"/></svg>',
+            '还没有收到回信',
+            '对方正在认真回复中，请稍候~'
+        );
         return;
     }
     var html = '';
@@ -552,25 +532,7 @@ function renderInboxList() {
         var preview = letter.content.length > 50 ? letter.content.substring(0, 50) + '…' : letter.content;
         var isNew = letter.isNew;
         var origPreview = letter.originalContent ? (letter.originalContent.length > 32 ? letter.originalContent.substring(0, 32) + '…' : letter.originalContent) : '';
-        html += '<div class="env-letter-item reply ' + (isNew ? 'env-letter-new' : '') + '" onclick="viewEnvLetter(\'inbox\',\'' + letter.id + '\')">' +
-            '<div class="env-letter-header">' +
-                '<div class="env-letter-header-from">' +
-                    '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>' +
-                    '收到 · ' + date +
-                    (isNew ? '<span style="background:rgba(255,255,255,0.3);color:#fff;font-size:9px;padding:1px 5px;border-radius:6px;margin-left:6px;">新</span>' : '') +
-                '</div>' +
-                '<div class="env-stamp">' +
-                    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' +
-                '</div>' +
-            '</div>' +
-            (origPreview ? '<div style="padding:6px 12px 0;display:flex;align-items:flex-start;gap:6px;"><div style="width:2px;border-radius:2px;background:rgba(var(--accent-color-rgb),0.4);flex-shrink:0;align-self:stretch;min-height:14px;margin-top:1px;"></div><div style="font-size:11px;color:var(--text-secondary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 14px);opacity:0.75;">原信: ' + origPreview + '</div></div>' : '') +
-            '<div class="env-letter-body">' +
-                '<div class="env-letter-preview">' + preview + '</div>' +
-            '</div>' +
-            '<button class="env-letter-delete-btn" onclick="deleteEnvLetter(event,\'inbox\',\'' + letter.id + '\')">' +
-                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-            '</button>' +
-        '</div>';
+        html += '<div class="env-letter-item reply ' + (isNew ? 'env-letter-new' : '') + '" onclick="viewEnvLetter(\'inbox\',\'' + letter.id + '\')"><div class="env-letter-header"><div class="env-letter-header-from"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>收到 · ' + date + (isNew ? '<span style="background:rgba(255,255,255,0.3);color:#fff;font-size:9px;padding:1px 5px;border-radius:6px;margin-left:6px;">新</span>' : '') + '</div><div class="env-stamp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div></div>' + (origPreview ? '<div style="padding:6px 12px 0;display:flex;align-items:flex-start;gap:6px;"><div style="width:2px;border-radius:2px;background:rgba(var(--accent-color-rgb),0.4);flex-shrink:0;align-self:stretch;min-height:14px;margin-top:1px;"></div><div style="font-size:11px;color:var(--text-secondary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 14px);opacity:0.75;">原信: ' + origPreview + '</div></div>' : '') + '<div class="env-letter-body"><div class="env-letter-preview">' + preview + '</div></div><button class="env-letter-delete-btn" onclick="deleteEnvLetter(event,\'inbox\',\'' + letter.id + '\')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
     }
     list.innerHTML = html;
 }
@@ -770,7 +732,7 @@ function _injectTimemailHTML() {
     var inboxTab = document.getElementById('env-tab-inbox');
     if (!inboxTab) return;
     
-    // ===== 统一风格：先改"寄出的信"和"收到的信" =====
+    // 统一风格：先改"寄出的信"和"收到的信"
     var outboxTab = document.getElementById('env-tab-outbox');
     var inboxTabExisting = document.getElementById('env-tab-inbox');
     
@@ -796,7 +758,7 @@ function _injectTimemailHTML() {
         }
     }
     
-    // ===== 创建"时空来信"Tab（使用完全相同的样式） =====
+    // 创建"时空来信"Tab（使用完全相同的样式）
     var timemailTab = document.createElement('button');
     timemailTab.id = 'env-tab-timemail';
     timemailTab.className = 'env-tab-btn';
@@ -813,7 +775,6 @@ function _injectTimemailHTML() {
         '</div>' +
         '<span id="env-timemail-badge" class="env-badge" style="display:none;"></span>';
     
-    // 插入到"收到的信"后面
     inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
     
     // 默认激活"寄出的信"
@@ -823,7 +784,7 @@ function _injectTimemailHTML() {
         outboxTab.style.background = 'var(--secondary-bg)';
     }
     
-    // ===== 创建时空来信面板 =====
+    // 创建时空来信面板（使用统一空状态样式）
     var inboxSection = document.getElementById('env-inbox-section');
     if (!inboxSection) return;
     
@@ -832,88 +793,14 @@ function _injectTimemailHTML() {
     timemailSection.style.cssText = 'display:none;padding:0 0 8px;';
     timemailSection.innerHTML = 
         '<div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>' +
-        '<div id="env-timemail-empty" style="text-align:center;padding:40px 20px;color:var(--text-secondary);">' +
-            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有时空来信</div>' +
-            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">开启"主动给我写信"后，系统会随机给你写信~</div>' +
-        '</div>';
+        _createEmptyHTML(
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+            '还没有时空来信',
+            '开启"主动给我写信"后，系统会随机给你写信~'
+        );
     
     inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
     
-    localStorage.setItem('timemail_injected', 'true');
-}
-    
-    var tabBar = document.querySelector('.env-tab-bar');
-    if (!tabBar) return;
-    
-    var inboxTab = document.getElementById('env-tab-inbox');
-    if (!inboxTab) return;
-    
-    // 创建时空来信 Tab
-    var timemailTab = document.createElement('button');
-    timemailTab.id = 'env-tab-timemail';
-    timemailTab.className = 'env-tab-btn';
-    timemailTab.setAttribute('onclick', "switchEnvTab('timemail')");
-    timemailTab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
-    timemailTab.innerHTML = 
-        '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
-            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:middle;">' +
-                '<circle cx="12" cy="12" r="10"/>' +
-                '<polyline points="12 6 12 12 16 14"/>' +
-            '</svg>' +
-            '<span style="font-size:11px;font-weight:600;letter-spacing:0.5px;">时空来信</span>' +
-            '<span style="font-size:8px;opacity:0.6;letter-spacing:0.3px;font-weight:400;">我们在命运的两端</span>' +
-        '</div>' +
-        '<span id="env-timemail-badge" class="env-badge" style="display:none;"></span>';
-    
-    // 插入到"收到的信"后面
-    inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
-    
-    // 修改"寄出的信"和"收到的信"的样式为三行
-    var outboxTab = document.getElementById('env-tab-outbox');
-    var inboxTabExisting = document.getElementById('env-tab-inbox');
-    
-    var tabsToUpdate = [outboxTab, inboxTabExisting];
-    for (var ti = 0; ti < tabsToUpdate.length; ti++) {
-        var tab = tabsToUpdate[ti];
-        if (tab) {
-            // 获取原有的 SVG 图标
-            var iconSvg = tab.querySelector('svg');
-            var iconHtml = iconSvg ? iconSvg.outerHTML : '';
-            var isOutbox = tab.id === 'env-tab-outbox';
-            var mainText = isOutbox ? '寄出的信' : '收到的信';
-            var subText = isOutbox ? 'LETTERS · SENT' : 'LETTERS · RECEIVED';
-            var badgeId = isOutbox ? 'env-outbox-badge' : 'env-inbox-badge';
-            
-            tab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
-            tab.innerHTML = 
-                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
-                    iconHtml +
-                    '<span style="font-size:11px;font-weight:600;letter-spacing:0.5px;">' + mainText + '</span>' +
-                    '<span style="font-size:8px;opacity:0.6;letter-spacing:0.3px;font-weight:400;">' + subText + '</span>' +
-                '</div>' +
-                '<span id="' + badgeId + '" class="env-badge" style="display:none;"></span>';
-        }
-    }
-    
-    // 创建时空来信面板
-    var inboxSection = document.getElementById('env-inbox-section');
-    if (!inboxSection) return;
-    
-    var timemailSection = document.createElement('div');
-    timemailSection.id = 'env-timemail-section';
-    timemailSection.style.cssText = 'display:none;padding:0 0 8px;';
-    timemailSection.innerHTML = 
-        '<div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>' +
-        '<div id="env-timemail-empty" style="text-align:center;padding:40px 20px;color:var(--text-secondary);">' +
-            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有时空来信</div>' +
-            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">开启"主动给我写信"后，系统会随机给你写信~</div>' +
-        '</div>';
-    
-    inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
-    
-    // 标记已注入
     localStorage.setItem('timemail_injected', 'true');
 }
 
@@ -946,7 +833,6 @@ function _injectTimemailToggle() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
-        // 检查是否已注入，如果已注入则跳过
         if (!localStorage.getItem('timemail_injected')) {
             _injectTimemailHTML();
             _injectTimemailToggle();
