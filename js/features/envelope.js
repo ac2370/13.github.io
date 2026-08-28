@@ -756,11 +756,14 @@ function handleSendEnvelope() {
 }
 
 // =============================================
-// 注入时空来信 HTML
+// 注入时空来信 HTML（最终版）
 // =============================================
 
 function _injectTimemailHTML() {
-    if (document.getElementById('env-tab-timemail')) return;
+    // 防止重复注入
+    if (document.getElementById('env-tab-timemail')) {
+        return;
+    }
     
     var tabBar = document.querySelector('.env-tab-bar');
     if (!tabBar) return;
@@ -768,10 +771,12 @@ function _injectTimemailHTML() {
     var inboxTab = document.getElementById('env-tab-inbox');
     if (!inboxTab) return;
     
+    // 创建时空来信 Tab
     var timemailTab = document.createElement('button');
     timemailTab.id = 'env-tab-timemail';
     timemailTab.className = 'env-tab-btn';
     timemailTab.setAttribute('onclick', "switchEnvTab('timemail')");
+    timemailTab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
     timemailTab.innerHTML = 
         '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:middle;">' +
@@ -783,11 +788,10 @@ function _injectTimemailHTML() {
         '</div>' +
         '<span id="env-timemail-badge" class="env-badge" style="display:none;"></span>';
     
-    timemailTab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
-    
+    // 插入到"收到的信"后面
     inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
     
-    // 修改"寄出的信"和"收到的信"的样式保持一致
+    // 修改"寄出的信"和"收到的信"的样式为三行
     var outboxTab = document.getElementById('env-tab-outbox');
     var inboxTabExisting = document.getElementById('env-tab-inbox');
     
@@ -795,12 +799,15 @@ function _injectTimemailHTML() {
     for (var ti = 0; ti < tabsToUpdate.length; ti++) {
         var tab = tabsToUpdate[ti];
         if (tab) {
+            // 获取原有的 SVG 图标
             var iconSvg = tab.querySelector('svg');
             var iconHtml = iconSvg ? iconSvg.outerHTML : '';
             var isOutbox = tab.id === 'env-tab-outbox';
             var mainText = isOutbox ? '寄出的信' : '收到的信';
             var subText = isOutbox ? 'LETTERS · SENT' : 'LETTERS · RECEIVED';
             var badgeId = isOutbox ? 'env-outbox-badge' : 'env-inbox-badge';
+            
+            tab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
             tab.innerHTML = 
                 '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
                     iconHtml +
@@ -808,10 +815,10 @@ function _injectTimemailHTML() {
                     '<span style="font-size:8px;opacity:0.6;letter-spacing:0.3px;font-weight:400;">' + subText + '</span>' +
                 '</div>' +
                 '<span id="' + badgeId + '" class="env-badge" style="display:none;"></span>';
-            tab.style.cssText = 'flex:1;padding:8px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;';
         }
     }
     
+    // 创建时空来信面板
     var inboxSection = document.getElementById('env-inbox-section');
     if (!inboxSection) return;
     
@@ -827,6 +834,9 @@ function _injectTimemailHTML() {
         '</div>';
     
     inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
+    
+    // 标记已注入
+    localStorage.setItem('timemail_injected', 'true');
 }
 
 function _injectTimemailToggle() {
@@ -858,15 +868,18 @@ function _injectTimemailToggle() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
-        _injectTimemailHTML();
-        _injectTimemailToggle();
+        // 检查是否已注入，如果已注入则跳过
+        if (!localStorage.getItem('timemail_injected')) {
+            _injectTimemailHTML();
+            _injectTimemailToggle();
+        }
         renderTimemailList();
         updateTimemailBadge();
         _autoSendTimemail();
         setInterval(function() {
             _autoSendTimemail();
         }, 300000);
-    }, 500);
+    }, 800);
 });
 
 console.log('[信封投递] 时空来信功能已加载');
