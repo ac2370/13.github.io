@@ -727,12 +727,18 @@ function handleSendEnvelope() {
 }
 
 // =============================================
-// 注入时空来信 HTML（最终版）
+// 强制创建时空来信 Tab（不检查任何标记）
 // =============================================
 
 function _injectTimemailHTML() {
-    if (document.getElementById('env-tab-timemail')) {
-        return;
+    // 不检查任何标记，直接删除旧的重新创建
+    var oldTab = document.getElementById('env-tab-timemail');
+    if (oldTab) {
+        oldTab.parentNode.removeChild(oldTab);
+    }
+    var oldSection = document.getElementById('env-timemail-section');
+    if (oldSection) {
+        oldSection.parentNode.removeChild(oldSection);
     }
     
     var tabBar = document.querySelector('.env-tab-bar');
@@ -809,8 +815,6 @@ function _injectTimemailHTML() {
         );
     
     inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
-    
-    localStorage.setItem('timemail_injected', 'true');
 }
 
 function _injectTimemailToggle() {
@@ -842,10 +846,9 @@ function _injectTimemailToggle() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
-        if (!localStorage.getItem('timemail_injected')) {
-            _injectTimemailHTML();
-            _injectTimemailToggle();
-        }
+        // 强制创建时空来信
+        _injectTimemailHTML();
+        _injectTimemailToggle();
         renderTimemailList();
         updateTimemailBadge();
         _autoSendTimemail();
