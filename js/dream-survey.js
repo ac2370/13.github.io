@@ -1,15 +1,11 @@
-// dream-survey.js - 梦向问卷系统（完整版）
 (function() {
     'use strict';
-
-    // =============================================
-    // 1. 配置与常量
-    // =============================================
+    
     const DAILY_KEY = 'dreamSurvey_daily';
     const CUSTOM_KEY = 'dreamSurvey_custom_list';
     const REPLY_KEY = 'dreamSurvey_reply_cache';
 
-    // 内置恋爱向每日问题池（可自由增删改）
+   
     const DEFAULT_QUESTIONS = [
         { q: '你最喜欢我身上哪个小习惯？', type: 'choice', options: ['笑容', '声音', '走路姿势', '说话语气'] },
         { q: '我们第一次约会时，你心里在想什么？', type: 'choice', options: ['好紧张', 'TA好可爱', '时间过快点', '想牵TA的手'] },
@@ -28,9 +24,7 @@
         { q: '今天想对我说的一句悄悄话是？', type: 'text' }
     ];
 
-    // =============================================
-    // 2. 工具函数
-    // =============================================
+
     function _getCustomList() {
         try {
             return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || [];
@@ -48,13 +42,11 @@
         localStorage.setItem(DAILY_KEY, JSON.stringify(rec));
     }
 
-    // 获取所有可用问题（内置 + 自定义）
     function _getAllQuestions() {
         const customs = _getCustomList();
         return [...DEFAULT_QUESTIONS, ...customs];
     }
 
-    // 获取自定义回复库（字卡）
     function _getReplyCards() {
         let cards = [];
         if (window.customReplies && Array.isArray(window.customReplies)) {
@@ -119,9 +111,9 @@
         }
     }
 
-    // =============================================
-    // 3. 每日随机弹出逻辑
-    // =============================================
+    
+
+ 
     function _checkDailyPopup() {
         const today = new Date().toDateString();
         const record = _getDailyRecord();
@@ -136,9 +128,10 @@
         _showSurveyModal(question, true);
     }
 
-    // =============================================
-    // 4. 问卷弹窗渲染（通用：每日随机 / 自定义创建）
-    // =============================================
+    
+
+
+    
     function _showSurveyModal(question, isDaily = false) {
         const old = document.getElementById('dream-survey-modal');
         if (old) old.remove();
@@ -179,13 +172,12 @@
         header.appendChild(closeBtn);
         inner.appendChild(header);
 
-        // 问题内容
+        
         const qDiv = document.createElement('div');
         qDiv.style.cssText = 'font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:18px;line-height:1.6;padding:12px 16px;background:rgba(var(--accent-color-rgb),0.06);border-radius:16px;border-left:4px solid var(--accent-color);';
         qDiv.textContent = question.q;
         inner.appendChild(qDiv);
 
-        // 答题区域
         const answerArea = document.createElement('div');
         answerArea.id = 'dream-answer-area';
         answerArea.style.cssText = 'margin-bottom:16px;';
@@ -331,7 +323,6 @@
 
         inner.appendChild(answerArea);
 
-        // 底部按钮
         const btnGroup = document.createElement('div');
         btnGroup.style.cssText = 'display:flex;gap:10px;margin-top:8px;';
         const cancelBtn = document.createElement('button');
@@ -413,9 +404,9 @@
         }
     }
 
-    // =============================================
-    // 5. 创建问卷表单（保留原有）
-    // =============================================
+
+
+    
     window.openDreamSurveyBuilder = function() {
         const old = document.getElementById('dream-builder-modal');
         if (old) old.remove();
@@ -505,9 +496,9 @@
         };
     };
 
-    // =============================================
-    // 6. 问卷管理主界面（列表 + 创建入口）
-    // =============================================
+
+
+    
     window.openDreamSurveyManager = function() {
         const old = document.getElementById('dream-manager-modal');
         if (old) old.remove();
@@ -535,7 +526,6 @@
             flex-direction:column;
         `;
 
-        // 标题
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
         header.innerHTML = `
@@ -544,7 +534,6 @@
         `;
         inner.appendChild(header);
 
-        // 问卷列表
         const listContainer = document.createElement('div');
         listContainer.id = 'dream-manager-list';
         listContainer.style.cssText = 'flex:1;overflow-y:auto;margin-bottom:16px;';
@@ -606,7 +595,6 @@
 
         inner.appendChild(listContainer);
 
-        // 底部按钮
         const btnGroup = document.createElement('div');
         btnGroup.style.cssText = 'display:flex;gap:10px;';
         const createBtn = document.createElement('button');
@@ -627,7 +615,6 @@
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        // 点击背景关闭
         wrap.addEventListener('click', function(e) {
             if (e.target === wrap) wrap.remove();
         });
@@ -635,9 +622,9 @@
         document.getElementById('dream-manager-close').addEventListener('click', () => wrap.remove());
     };
 
-    // =============================================
-    // 7. 初始化：每日弹出
-    // =============================================
+
+
+    
     function _init() {
         setTimeout(() => {
             _checkDailyPopup();
@@ -650,7 +637,6 @@
         _init();
     }
 
-    // 暴露调试方法
     window.forceCheckDailySurvey = _checkDailyPopup;
     window.viewDreamHistory = function() {
         try {
