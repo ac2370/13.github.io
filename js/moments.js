@@ -1,29 +1,43 @@
-// moments.js - 朋友圈功能
+// moments.js - 朋友圈功能（含封面设置）
 (function() {
     'use strict';
 
-    const STORAGE_KEY = 'moments_data';
-    const BG_KEY = 'moments_bg_image';
-    const MAX_POSTS = 100;
+    var STORAGE_KEY = 'moments_data';
+    var COVER_KEY = 'moments_cover_image';
+    var MAX_POSTS = 100;
 
+    // =============================================
+    // 工具函数
+    // =============================================
     function _getReplyCards() {
-        let cards = [];
+        var cards = [];
         if (window.customReplies && Array.isArray(window.customReplies)) {
-            cards = window.customReplies.map(c => typeof c === 'string' ? c : (c.text || c.label || ''));
+            cards = window.customReplies.map(function(c) {
+                return typeof c === 'string' ? c : (c.text || c.label || '');
+            });
         }
         try {
-            const stored = localStorage.getItem('customReplies');
+            var stored = localStorage.getItem('customReplies');
             if (stored) {
-                const parsed = JSON.parse(stored);
+                var parsed = JSON.parse(stored);
                 if (Array.isArray(parsed)) {
-                    cards = parsed.map(c => typeof c === 'string' ? c : (c.text || c.label || ''));
+                    cards = parsed.map(function(c) {
+                        return typeof c === 'string' ? c : (c.text || c.label || '');
+                    });
                 }
             }
         } catch(e) {}
         if (cards.length === 0) {
             cards = ['早安', '晚安', '想你', '抱抱', '亲亲', '开心', '好梦', '今天超棒', '别担心', '有我在'];
         }
-        return [...new Set(cards.filter(c => c && c.trim()))];
+        var result = [];
+        for (var i = 0; i < cards.length; i++) {
+            var c = cards[i];
+            if (c && c.trim()) {
+                if (result.indexOf(c) === -1) result.push(c);
+            }
+        }
+        return result;
     }
 
     function _getPartnerName() {
@@ -72,25 +86,29 @@
         }
     }
 
-    function _getBgImage() {
-        try { return localStorage.getItem(BG_KEY) || ''; } catch { return ''; }
+    // ---- 封面管理 ----
+    function _getCoverImage() {
+        try { return localStorage.getItem(COVER_KEY) || ''; } catch { return ''; }
     }
-    function _setBgImage(data) { localStorage.setItem(BG_KEY, data); }
-    function _clearBgImage() { localStorage.removeItem(BG_KEY); }
+    function _setCoverImage(data) { localStorage.setItem(COVER_KEY, data); }
+    function _clearCoverImage() { localStorage.removeItem(COVER_KEY); }
 
+    // ---- 数据管理 ----
     function _getData() {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { posts: [], lastGenerateDate: '' }; } catch { return { posts: [], lastGenerateDate: '' }; }
     }
     function _setData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
     function _getPosts() {
-        const data = _getData();
-        return data.posts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        var data = _getData();
+        return data.posts.sort(function(a, b) {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
     }
 
     function _addPost(author, text, timestamp) {
-        const data = _getData();
-        const post = {
+        var data = _getData();
+        var post = {
             id: _generateId(),
             author: author,
             text: text.trim(),
@@ -106,25 +124,30 @@
     }
 
     function _deletePost(postId) {
-        const data = _getData();
-        data.posts = data.posts.filter(p => p.id !== postId);
+        var data = _getData();
+        data.posts = data.posts.filter(function(p) { return p.id !== postId; });
         _setData(data);
     }
 
     function _toggleLike(postId) {
-        const data = _getData();
-        const post = data.posts.find(p => p.id === postId);
+        var data = _getData();
+        var post = data.posts.find(function(p) { return p.id === postId; });
         if (!post) return;
-        if (post.likedByMe) { post.likes -= 1; post.likedByMe = false; }
-        else { post.likes += 1; post.likedByMe = true; }
+        if (post.likedByMe) {
+            post.likes -= 1;
+            post.likedByMe = false;
+        } else {
+            post.likes += 1;
+            post.likedByMe = true;
+        }
         _setData(data);
     }
 
     function _addComment(postId, author, text) {
-        const data = _getData();
-        const post = data.posts.find(p => p.id === postId);
+        var data = _getData();
+        var post = data.posts.find(function(p) { return p.id === postId; });
         if (!post) return null;
-        const comment = {
+        var comment = {
             id: _generateId(),
             author: author,
             text: text.trim(),
@@ -137,10 +160,10 @@
     }
 
     function _addReplyToComment(postId, commentId, replyText) {
-        const data = _getData();
-        const post = data.posts.find(p => p.id === postId);
+        var data = _getData();
+        var post = data.posts.find(function(p) { return p.id === postId; });
         if (!post) return;
-        const comment = post.comments.find(c => c.id === commentId);
+        var comment = post.comments.find(function(c) { return c.id === commentId; });
         if (!comment) return;
         comment.reply = {
             text: replyText,
@@ -149,7 +172,7 @@
         _setData(data);
     }
 
-    // 梦角动态模板
+    // ---- 梦角动态模板 ----
     var PARTNER_POST_TEMPLATES = [
         '今天的阳光像你一样温暖。',
         '做了一个很长的梦，醒来只记得你的名字。',
@@ -182,19 +205,20 @@
         }
         var selected = templates.slice(0, count);
         var now = new Date();
-        selected.forEach(function(text) {
+        for (var idx = 0; idx < selected.length; idx++) {
+            var text = selected[idx];
             var hours = Math.random() * 24;
             var minutes = Math.random() * 60;
             var ts = new Date(now);
             ts.setHours(Math.floor(hours), Math.floor(minutes), Math.floor(Math.random() * 60), 0);
             _addPost('partner', text, ts.toISOString());
-        });
+        }
         data.lastGenerateDate = today;
         _setData(data);
         var pName = _getPartnerName();
-        selected.forEach(function(text) {
-            _sendAsMessage('📱 ' + pName + ' 发了一条新动态：' + text, true);
-        });
+        for (var idx2 = 0; idx2 < selected.length; idx2++) {
+            _sendAsMessage('📱 ' + pName + ' 发了一条新动态：' + selected[idx2], true);
+        }
     }
 
     function formatTime(iso) {
@@ -208,9 +232,137 @@
         return date.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     }
 
+    // =============================================
+    // 封面设置弹窗
+    // =============================================
+    function showCoverSettings() {
+        var old = document.getElementById('cover-settings-modal');
+        if (old) old.remove();
+
+        var wrap = document.createElement('div');
+        wrap.id = 'cover-settings-modal';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
+            '<span style="font-size:18px;font-weight:700;">🖼️ 更换封面</span>' +
+            '<button id="cover-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
+            '</div>' +
+            '<div style="margin-bottom:12px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">选择一张图片作为朋友圈封面</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<button id="cover-upload-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">📤 上传图片</button>' +
+            '<button id="cover-url-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">🔗 图片URL</button>' +
+            '<button id="cover-reset-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:#ff6b6b;cursor:pointer;font-size:13px;font-family:var(--font-family);">🗑️ 恢复默认</button>' +
+            '</div>' +
+            '<input type="file" id="cover-file-input" accept="image/*" style="display:none;">' +
+            '</div>' +
+            '<div id="cover-preview-wrap" style="display:' + (_getCoverImage() ? 'block' : 'none') + ';margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid var(--border-color);">' +
+            '<img id="cover-preview-img" src="' + _getCoverImage() + '" style="width:100%;max-height:150px;object-fit:cover;display:block;">' +
+            '<div style="padding:6px 10px;font-size:11px;color:var(--text-secondary);text-align:center;background:rgba(var(--primary-bg-rgb),0.6);">当前封面预览</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;">' +
+            '<button id="cover-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">关闭</button>' +
+            '<button id="cover-apply" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">应用到封面</button>' +
+            '</div>';
+        wrap.appendChild(inner);
+        document.body.appendChild(wrap);
+
+        var close = function() { wrap.remove(); };
+        document.getElementById('cover-close').onclick = close;
+        document.getElementById('cover-cancel').onclick = close;
+        wrap.onclick = function(e) { if (e.target === wrap) close(); };
+
+        document.getElementById('cover-upload-btn').onclick = function() {
+            document.getElementById('cover-file-input').click();
+        };
+        document.getElementById('cover-file-input').onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                var data = ev.target.result;
+                var preview = document.getElementById('cover-preview-img');
+                var wrap2 = document.getElementById('cover-preview-wrap');
+                if (preview) preview.src = data;
+                if (wrap2) wrap2.style.display = 'block';
+                window._tempCoverData = data;
+                _notify('图片已加载，点击"应用到封面"生效', 'success', 2000);
+            };
+            reader.readAsDataURL(file);
+        };
+
+        document.getElementById('cover-url-btn').onclick = function() {
+            var url = prompt('请输入图片URL地址（支持 https://...）');
+            if (url && url.trim()) {
+                var preview = document.getElementById('cover-preview-img');
+                var wrap2 = document.getElementById('cover-preview-wrap');
+                if (preview) preview.src = url.trim();
+                if (wrap2) wrap2.style.display = 'block';
+                window._tempCoverData = url.trim();
+                _notify('图片已加载，点击"应用到封面"生效', 'success', 2000);
+            }
+        };
+
+        document.getElementById('cover-reset-btn').onclick = function() {
+            if (confirm('确定恢复默认封面吗？')) {
+                _clearCoverImage();
+                var preview = document.getElementById('cover-preview-img');
+                var wrap2 = document.getElementById('cover-preview-wrap');
+                if (preview) preview.src = '';
+                if (wrap2) wrap2.style.display = 'none';
+                window._tempCoverData = null;
+                _notify('已恢复默认封面', 'info');
+            }
+        };
+
+        document.getElementById('cover-apply').onclick = function() {
+            var data = window._tempCoverData;
+            if (data) {
+                _setCoverImage(data);
+            } else {
+                var preview = document.getElementById('cover-preview-img');
+                if (preview && preview.src && preview.src !== '') {
+                    _setCoverImage(preview.src);
+                } else {
+                    _notify('请先上传或输入图片', 'warning');
+                    return;
+                }
+            }
+            // 刷新封面
+            var coverEl = document.getElementById('moments-cover');
+            if (coverEl) {
+                var bg = _getCoverImage();
+                if (bg) {
+                    coverEl.style.backgroundImage = 'url(' + bg + ')';
+                    coverEl.style.backgroundSize = 'cover';
+                    coverEl.style.backgroundPosition = 'center';
+                }
+            }
+            close();
+            _notify('封面已更新 ✨', 'success');
+        };
+
+        var existingCover = _getCoverImage();
+        if (existingCover) {
+            var preview = document.getElementById('cover-preview-img');
+            var wrap2 = document.getElementById('cover-preview-wrap');
+            if (preview) preview.src = existingCover;
+            if (wrap2) wrap2.style.display = 'block';
+            window._tempCoverData = existingCover;
+        }
+    }
+
+    // =============================================
+    // 渲染Tab内容
+    // =============================================
     function renderTab(tab, container) {
         var posts = _getPosts();
-        var filtered = posts.filter(function(p) { return p.author === tab; });
+        var filtered = [];
+        for (var i = 0; i < posts.length; i++) {
+            if (posts[i].author === tab) filtered.push(posts[i]);
+        }
         if (filtered.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-secondary);background:rgba(var(--primary-bg-rgb),0.6);border-radius:16px;backdrop-filter:blur(4px);">' +
                 '<div style="font-size:48px;margin-bottom:12px;">📭</div>' +
@@ -221,7 +373,8 @@
         }
 
         var html = '';
-        filtered.forEach(function(post) {
+        for (var pi = 0; pi < filtered.length; pi++) {
+            var post = filtered[pi];
             var isMe = post.author === 'me';
             var avatarIcon = isMe ? '👤' : '🌸';
             var name = isMe ? _getMyName() : _getPartnerName();
@@ -247,7 +400,8 @@
 
             if (post.comments.length > 0) {
                 html += '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(var(--border-color-rgb,0,0,0),0.15);">';
-                post.comments.forEach(function(c) {
+                for (var ci = 0; ci < post.comments.length; ci++) {
+                    var c = post.comments[ci];
                     var cName = c.author === 'me' ? _getMyName() : _getPartnerName();
                     var cAvatar = c.author === 'me' ? '👤' : '🌸';
                     html += '<div style="margin-bottom:4px;font-size:13px;">' +
@@ -262,46 +416,58 @@
                             '</div>';
                     }
                     html += '</div>';
-                });
+                }
                 html += '</div>';
             }
             html += '</div>';
-        });
+        }
 
         container.innerHTML = html;
 
-        container.querySelectorAll('.moments-like-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var id = this.dataset.id;
-                _toggleLike(id);
-                var activeTab = document.querySelector('.moments-tab.active');
-                if (activeTab) renderTab(activeTab.dataset.tab, container);
-            });
-        });
-
-        container.querySelectorAll('.moments-comment-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var postId = this.dataset.id;
-                showCommentModal(postId);
-            });
-        });
-
-        container.querySelectorAll('.moments-delete-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var id = this.dataset.id;
-                if (confirm('确定要删除这条动态吗？')) {
-                    _deletePost(id);
+        var likeBtns = container.querySelectorAll('.moments-like-btn');
+        for (var lb = 0; lb < likeBtns.length; lb++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.dataset.id;
+                    _toggleLike(id);
                     var activeTab = document.querySelector('.moments-tab.active');
                     if (activeTab) renderTab(activeTab.dataset.tab, container);
-                    _notify('已删除', 'info');
-                }
-            });
-        });
+                });
+            })(likeBtns[lb]);
+        }
+
+        var commentBtns = container.querySelectorAll('.moments-comment-btn');
+        for (var cb = 0; cb < commentBtns.length; cb++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var postId = this.dataset.id;
+                    showCommentModal(postId);
+                });
+            })(commentBtns[cb]);
+        }
+
+        var deleteBtns = container.querySelectorAll('.moments-delete-btn');
+        for (var db = 0; db < deleteBtns.length; db++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.dataset.id;
+                    if (confirm('确定要删除这条动态吗？')) {
+                        _deletePost(id);
+                        var activeTab = document.querySelector('.moments-tab.active');
+                        if (activeTab) renderTab(activeTab.dataset.tab, container);
+                        _notify('已删除', 'info');
+                    }
+                });
+            })(deleteBtns[db]);
+        }
     }
 
+    // =============================================
+    // 发布、评论、朋友圈主界面
+    // =============================================
     function showPublishModal() {
         var old = document.getElementById('publish-modal');
         if (old) old.remove();
@@ -372,7 +538,10 @@
             if (!text) { _notify('请输入评论', 'warning'); return; }
 
             var posts = _getPosts();
-            var post = posts.find(function(p) { return p.id === postId; });
+            var post = null;
+            for (var i = 0; i < posts.length; i++) {
+                if (posts[i].id === postId) { post = posts[i]; break; }
+            }
             if (!post) { _notify('帖子不存在', 'error'); return; }
 
             var comment = _addComment(postId, 'me', text);
@@ -388,13 +557,22 @@
                 var delay = 60000 + Math.random() * 540000;
                 setTimeout(function() {
                     var freshPosts = _getPosts();
-                    var freshPost = freshPosts.find(function(p) { return p.id === postId; });
+                    var freshPost = null;
+                    for (var fi = 0; fi < freshPosts.length; fi++) {
+                        if (freshPosts[fi].id === postId) { freshPost = freshPosts[fi]; break; }
+                    }
                     if (!freshPost) return;
                     var latestComment = freshPost.comments[freshPost.comments.length - 1];
                     if (latestComment && latestComment.author === 'me' && !latestComment.reply) {
                         var cards = _getReplyCards();
                         var count = 1 + Math.floor(Math.random() * 3);
-                        var shuffled = cards.sort(function() { return Math.random() - 0.5; });
+                        var shuffled = cards.slice();
+                        for (var si = shuffled.length - 1; si > 0; si--) {
+                            var sj = Math.floor(Math.random() * (si + 1));
+                            var st = shuffled[si];
+                            shuffled[si] = shuffled[sj];
+                            shuffled[sj] = st;
+                        }
                         var picked = shuffled.slice(0, count);
                         var replyText = picked.join('');
                         _addReplyToComment(postId, latestComment.id, replyText);
@@ -409,118 +587,9 @@
         };
     }
 
-    function showBgSettings() {
-        var old = document.getElementById('moments-bg-modal');
-        if (old) old.remove();
-
-        var wrap = document.createElement('div');
-        wrap.id = 'moments-bg-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
-        var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
-        inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
-            '<span style="font-size:18px;font-weight:700;">🖼️ 聊天背景</span>' +
-            '<button id="bg-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
-            '</div>' +
-            '<div style="margin-bottom:12px;">' +
-            '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">选择一张图片作为朋友圈聊天背景</div>' +
-            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
-            '<button id="bg-upload-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">📤 上传图片</button>' +
-            '<button id="bg-url-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">🔗 图片URL</button>' +
-            '<button id="bg-reset-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:#ff6b6b;cursor:pointer;font-size:13px;font-family:var(--font-family);">🗑️ 恢复默认</button>' +
-            '</div>' +
-            '<input type="file" id="bg-file-input" accept="image/*" style="display:none;">' +
-            '</div>' +
-            '<div id="bg-preview-wrap" style="display:' + (_getBgImage() ? 'block' : 'none') + ';margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid var(--border-color);">' +
-            '<img id="bg-preview-img" src="' + _getBgImage() + '" style="width:100%;max-height:150px;object-fit:cover;display:block;">' +
-            '<div style="padding:6px 10px;font-size:11px;color:var(--text-secondary);text-align:center;background:rgba(var(--primary-bg-rgb),0.6);">当前背景预览</div>' +
-            '</div>' +
-            '<div style="display:flex;gap:10px;">' +
-            '<button id="bg-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">关闭</button>' +
-            '<button id="bg-apply" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">应用到朋友圈</button>' +
-            '</div>';
-        wrap.appendChild(inner);
-        document.body.appendChild(wrap);
-
-        var close = function() { wrap.remove(); };
-        document.getElementById('bg-close').onclick = close;
-        document.getElementById('bg-cancel').onclick = close;
-        wrap.onclick = function(e) { if (e.target === wrap) close(); };
-
-        document.getElementById('bg-upload-btn').onclick = function() {
-            document.getElementById('bg-file-input').click();
-        };
-        document.getElementById('bg-file-input').onchange = function(e) {
-            var file = e.target.files[0];
-            if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function(ev) {
-                var data = ev.target.result;
-                var preview = document.getElementById('bg-preview-img');
-                var wrap2 = document.getElementById('bg-preview-wrap');
-                if (preview) preview.src = data;
-                if (wrap2) wrap2.style.display = 'block';
-                window._tempBgData = data;
-                _notify('图片已加载，点击"应用到朋友圈"生效', 'success', 2000);
-            };
-            reader.readAsDataURL(file);
-        };
-
-        document.getElementById('bg-url-btn').onclick = function() {
-            var url = prompt('请输入图片URL地址（支持 https://...）');
-            if (url && url.trim()) {
-                var preview = document.getElementById('bg-preview-img');
-                var wrap2 = document.getElementById('bg-preview-wrap');
-                if (preview) preview.src = url.trim();
-                if (wrap2) wrap2.style.display = 'block';
-                window._tempBgData = url.trim();
-                _notify('图片已加载，点击"应用到朋友圈"生效', 'success', 2000);
-            }
-        };
-
-        document.getElementById('bg-reset-btn').onclick = function() {
-            if (confirm('确定恢复默认背景吗？')) {
-                _clearBgImage();
-                var preview = document.getElementById('bg-preview-img');
-                var wrap2 = document.getElementById('bg-preview-wrap');
-                if (preview) preview.src = '';
-                if (wrap2) wrap2.style.display = 'none';
-                window._tempBgData = null;
-                _notify('已恢复默认背景', 'info');
-            }
-        };
-
-        document.getElementById('bg-apply').onclick = function() {
-            var data = window._tempBgData;
-            if (data) {
-                _setBgImage(data);
-            } else {
-                var preview = document.getElementById('bg-preview-img');
-                if (preview && preview.src && preview.src !== '') {
-                    _setBgImage(preview.src);
-                } else {
-                    _notify('请先上传或输入图片', 'warning');
-                    return;
-                }
-            }
-            var content = document.getElementById('moments-content');
-            if (content) {
-                var bg = _getBgImage();
-                if (bg) {
-                    content.style.backgroundImage = 'url(' + bg + ')';
-                    content.style.backgroundSize = 'cover';
-                    content.style.backgroundPosition = 'center';
-                    content.style.backgroundRepeat = 'no-repeat';
-                } else {
-                    content.style.backgroundImage = '';
-                    content.style.background = 'var(--secondary-bg)';
-                }
-            }
-            close();
-            _notify('背景已更新 ✨', 'success');
-        };
-    }
-
+    // =============================================
+    // 朋友圈主界面（含封面）
+    // =============================================
     window.openMoments = function() {
         _generatePartnerPosts();
 
@@ -534,31 +603,52 @@
         var inner = document.createElement('div');
         inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:0;width:min(480px, 94vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
-        var header = document.createElement('div');
-        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px 12px;border-bottom:1px solid var(--border-color);flex-shrink:0;';
-        header.innerHTML = '<span style="font-size:20px;font-weight:700;color:var(--text-primary);">📱 朋友圈</span>' +
-            '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<button id="moments-bg-btn" style="background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;" title="更换聊天背景"><i class="fas fa-image"></i></button>' +
-            '<button id="moments-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>' +
-            '</div>';
-        inner.appendChild(header);
+        // ===== 顶部封面区域 =====
+        var coverUrl = _getCoverImage();
+        var defaultCover = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        var coverStyle = coverUrl ? 'url(' + coverUrl + ')' : defaultCover;
 
+        var coverSection = document.createElement('div');
+        coverSection.id = 'moments-cover';
+        coverSection.style.cssText = 'position:relative;width:100%;height:160px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;transition:background 0.3s ease;';
+
+        // 封面上的文字装饰（类似截图中的格言）
+        var coverText = document.createElement('div');
+        coverText.style.cssText = 'position:absolute;bottom:16px;left:16px;right:16px;color:rgba(255,255,255,0.9);text-shadow:0 2px 12px rgba(0,0,0,0.3);';
+        coverText.innerHTML = 
+            '<div style="font-size:16px;font-weight:300;letter-spacing:2px;font-style:italic;line-height:1.5;">誓言是一场有时差的雨。</div>' +
+            '<div style="font-size:11px;opacity:0.7;margin-top:2px;letter-spacing:1px;font-weight:300;">— Vow is a rain with time difference.</div>';
+        coverSection.appendChild(coverText);
+
+        // 右上角更换封面按钮（仅点击封面触发）
+        var coverBtnHint = document.createElement('div');
+        coverBtnHint.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);padding:4px 10px;border-radius:12px;font-size:11px;color:rgba(255,255,255,0.8);pointer-events:none;';
+        coverBtnHint.textContent = '📷 更换封面';
+        coverSection.appendChild(coverBtnHint);
+
+        // 点击封面打开设置
+        coverSection.addEventListener('click', function() {
+            showCoverSettings();
+        });
+
+        inner.appendChild(coverSection);
+
+        // ===== Tab切换 =====
         var tabBar = document.createElement('div');
-        tabBar.style.cssText = 'display:flex;border-bottom:1px solid var(--border-color);flex-shrink:0;';
+        tabBar.style.cssText = 'display:flex;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--primary-bg);';
         tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:10px;border:none;background:var(--secondary-bg);font-weight:700;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);">我的</button>' +
             '<button class="moments-tab" data-tab="partner" style="flex:1;padding:10px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);">' + _getPartnerName() + '的</button>';
         inner.appendChild(tabBar);
 
+        // ===== 内容列表 =====
         var contentContainer = document.createElement('div');
         contentContainer.id = 'moments-content';
-        var bg = _getBgImage();
-        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px;' +
-            (bg ? 'background-image:url(' + bg + ');background-size:cover;background-position:center;background-repeat:no-repeat;' : 'background:var(--secondary-bg);') +
-            'transition: background-image 0.3s ease;';
+        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px;background:var(--secondary-bg);';
 
         renderTab('me', contentContainer);
         inner.appendChild(contentContainer);
 
+        // ===== 底部发布按钮 =====
         var footer = document.createElement('div');
         footer.style.cssText = 'display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);backdrop-filter:blur(8px);';
         var addBtn = document.createElement('button');
@@ -573,13 +663,9 @@
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
+        // ===== 事件绑定 =====
         document.getElementById('moments-close').onclick = function() { wrap.remove(); };
         wrap.addEventListener('click', function(e) { if (e.target === wrap) wrap.remove(); });
-
-        document.getElementById('moments-bg-btn').onclick = function(e) {
-            e.stopPropagation();
-            showBgSettings();
-        };
 
         tabBar.querySelectorAll('.moments-tab').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -606,5 +692,5 @@
         }, 1500);
     });
 
-    console.log('[朋友圈] 模块已加载');
+    console.log('[朋友圈] 模块已加载（含封面设置）');
 })();
