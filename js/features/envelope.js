@@ -126,44 +126,53 @@ function renderTimemailList() {
     var data = _getTimemailData();
     var letters = data.letters;
     
-    if (letters.length === 0) {
-        if (empty) empty.style.display = 'block';
-        container.innerHTML = '';
+    if (letters.length > 0) {
+        if (empty) empty.style.display = 'none';
+        container.style.display = 'block';
+        container.style.minHeight = 'auto';
+        
+        var html = '';
+        for (var i = 0; i < letters.length; i++) {
+            var l = letters[i];
+            var date = new Date(l.timestamp);
+            var dateStr = date.getFullYear() + '/' + 
+                String(date.getMonth() + 1).padStart(2, '0') + '/' + 
+                String(date.getDate()).padStart(2, '0') + ' ' +
+                String(date.getHours()).padStart(2, '0') + ':' +
+                String(date.getMinutes()).padStart(2, '0');
+            var statusText = l.read ? '已读' : '未读';
+            var statusColor = l.read ? 'var(--text-secondary)' : 'var(--accent-color)';
+            var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+            var preview = l.content.length > 40 ? l.content.substring(0, 40) + '…' : l.content;
+            
+            html += '<div class="env-letter-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
+                '<div class="env-letter-header">' +
+                    '<div class="env-letter-header-from">' +
+                        '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+                        '来自 ' + _escHtml(pName) + ' · ' + dateStr +
+                    '</div>' +
+                    '<div class="env-stamp" style="font-size:10px;color:' + statusColor + ';background:rgba(var(--accent-color-rgb),0.08);padding:2px 10px;border-radius:12px;">' + statusText + '</div>' +
+                '</div>' +
+                '<div class="env-letter-body">' +
+                    '<div class="env-letter-preview">' + _escHtml(preview) + '</div>' +
+                '</div>' +
+                '<button class="env-letter-delete-btn" onclick="deleteTimemail(event,\'' + l.id + '\')">' +
+                    '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+                '</button>' +
+            '</div>';
+        }
+        container.innerHTML = html;
         return;
     }
-    if (empty) empty.style.display = 'none';
     
-    var html = '';
-    for (var i = 0; i < letters.length; i++) {
-        var l = letters[i];
-        var date = new Date(l.timestamp);
-        var dateStr = date.getFullYear() + '/' + 
-            String(date.getMonth() + 1).padStart(2, '0') + '/' + 
-            String(date.getDate()).padStart(2, '0') + ' ' +
-            String(date.getHours()).padStart(2, '0') + ':' +
-            String(date.getMinutes()).padStart(2, '0');
-        var statusText = l.read ? '已读' : '未读';
-        var statusColor = l.read ? 'var(--text-secondary)' : 'var(--accent-color)';
-        var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
-        var preview = l.content.length > 40 ? l.content.substring(0, 40) + '…' : l.content;
-        
-        html += '<div class="env-letter-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
-            '<div class="env-letter-header">' +
-                '<div class="env-letter-header-from">' +
-                    '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-                    '来自 ' + _escHtml(pName) + ' · ' + dateStr +
-                '</div>' +
-                '<div class="env-stamp" style="font-size:10px;color:' + statusColor + ';background:rgba(var(--accent-color-rgb),0.08);padding:2px 10px;border-radius:12px;">' + statusText + '</div>' +
-            '</div>' +
-            '<div class="env-letter-body">' +
-                '<div class="env-letter-preview">' + _escHtml(preview) + '</div>' +
-            '</div>' +
-            '<button class="env-letter-delete-btn" onclick="deleteTimemail(event,\'' + l.id + '\')">' +
-                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-            '</button>' +
-        '</div>';
+    container.style.display = 'none';
+    container.innerHTML = '';
+    if (empty) {
+        empty.style.display = 'block';
+        empty.style.padding = '50px 20px';
+        empty.style.textAlign = 'center';
+        empty.style.color = 'var(--text-secondary)';
     }
-    container.innerHTML = html;
 }
 
 function deleteTimemail(event, id) {
@@ -792,7 +801,7 @@ function _injectTimemailHTML() {
     timemailSection.id = 'env-timemail-section';
     timemailSection.style.cssText = 'display:none;padding:0 0 8px;';
     timemailSection.innerHTML = 
-        '<div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>' +
+        '<div id="env-timemail-list" style="padding:12px 4px;"></div>' +
         _createEmptyHTML(
             '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
             '还没有时空来信',
