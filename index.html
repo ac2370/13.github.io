@@ -1405,11 +1405,10 @@
                 </div>
             </div>
 
-            <div class="modal-buttons" style="position:sticky;bottom:0;background:var(--secondary-bg);border-top:1px solid var(--border-color);padding:12px 0 0;z-index:10;margin-top:8px;margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px;padding-bottom:max(14px, env(safe-area-inset-bottom, 0px));">
-                <button class="modal-btn modal-btn-secondary" id="back-advanced" onclick="(function(){hideModal(document.getElementById('advanced-modal'));showModal(document.getElementById('settings-modal'))})()">
+           <div class="modal-buttons" style="display:flex; gap:10px; padding:12px 0 0; border-top:1px solid var(--border-color); margin-top:12px;">
+               <button class="modal-btn modal-btn-secondary" id="back-advanced" onclick="(function(){hideModal(document.getElementById('advanced-modal'));showModal(document.getElementById('settings-modal'))})()" style="flex:1;">
                     <i class="fas fa-arrow-left"></i> 返回
                 </button>
-                <button class="modal-btn modal-btn-secondary" id="close-advanced">关闭</button>
             </div>
         </div>
     </div>
