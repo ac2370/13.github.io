@@ -821,9 +821,9 @@ function _injectTimemailHTML() {
     timemailSection.innerHTML = 
         '<div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>' +
         '<div id="env-timemail-empty" style="text-align:center;padding:40px 20px;color:var(--text-secondary);">' +
-            '<div style="font-size:48px;margin-bottom:12px;">⏳</div>' +
-            '<div style="font-size:15px;font-weight:600;">还没有时空来信</div>' +
-            '<div style="font-size:13px;opacity:0.7;margin-top:4px;">开启"主动给我写信"后，系统会随机给你写信~</div>' +
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有时空来信</div>' +
+            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">开启"主动给我写信"后，系统会随机给你写信~</div>' +
         '</div>';
     
     inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
