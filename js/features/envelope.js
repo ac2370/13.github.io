@@ -147,17 +147,36 @@ function renderTimemailList() {
         var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
         var preview = l.content.length > 40 ? l.content.substring(0, 40) + '…' : l.content;
         
-        html += '<div class="timemail-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                '<span style="font-weight:600;color:var(--text-primary);font-size:14px;">✉️ 来自 ' + _escHtml(pName) + '</span>' +
-                '<span style="font-size:11px;color:' + statusColor + ';">' + statusText + '</span>' +
+        html += '<div class="env-letter-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
+            '<div class="env-letter-header">' +
+                '<div class="env-letter-header-from">' +
+                    '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+                    '来自 ' + _escHtml(pName) + ' · ' + dateStr +
+                '</div>' +
+                '<div class="env-stamp" style="font-size:10px;color:' + statusColor + ';background:rgba(var(--accent-color-rgb),0.08);padding:2px 10px;border-radius:12px;">' + statusText + '</div>' +
             '</div>' +
-            '<div style="font-size:13px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">' + _escHtml(preview) + '</div>' +
-            '<div style="font-size:10px;color:var(--text-secondary);opacity:0.6;margin-top:4px;">' + dateStr + '</div>' +
+            '<div class="env-letter-body">' +
+                '<div class="env-letter-preview">' + _escHtml(preview) + '</div>' +
+            '</div>' +
+            '<button class="env-letter-delete-btn" onclick="deleteTimemail(event,\'' + l.id + '\')">' +
+                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+            '</button>' +
         '</div>';
     }
     container.innerHTML = html;
 }
+
+function deleteTimemail(event, id) {
+    event.stopPropagation();
+    if (!confirm('确定要删除这封时空来信吗？')) return;
+    var data = _getTimemailData();
+    data.letters = data.letters.filter(function(l) { return l.id !== id; });
+    _setTimemailData(data);
+    renderTimemailList();
+    updateTimemailBadge();
+    if (typeof showNotification === 'function') showNotification('已删除', 'success');
+}
+window.deleteTimemail = deleteTimemail;
 
 function updateTimemailBadge() {
     var data = _getTimemailData();
@@ -406,7 +425,7 @@ function generateEnvelopeReplyText() {
 }
 
 // =============================================
-// switchEnvTab - 添加了 timemail 支持
+// switchEnvTab - 统一三个 Tab 样式
 // =============================================
 window.switchEnvTab = function(tab) {
     currentEnvTab = tab;
@@ -414,9 +433,26 @@ window.switchEnvTab = function(tab) {
     var inboxBtn = document.getElementById('env-tab-inbox');
     var timemailBtn = document.getElementById('env-tab-timemail');
     
-    if (outboxBtn) outboxBtn.classList.toggle('active', tab === 'outbox');
-    if (inboxBtn) inboxBtn.classList.toggle('active', tab === 'inbox');
-    if (timemailBtn) timemailBtn.classList.toggle('active', tab === 'timemail');
+    // 三个 Tab 使用相同的样式切换逻辑
+    var allTabs = [outboxBtn, inboxBtn, timemailBtn];
+    allTabs.forEach(function(btn) {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-secondary)';
+        }
+    });
+    
+    var activeBtn = null;
+    if (tab === 'outbox') activeBtn = outboxBtn;
+    else if (tab === 'inbox') activeBtn = inboxBtn;
+    else if (tab === 'timemail') activeBtn = timemailBtn;
+    
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--secondary-bg)';
+        activeBtn.style.color = 'var(--text-primary)';
+    }
     
     var outboxSection = document.getElementById('env-outbox-section');
     var inboxSection = document.getElementById('env-inbox-section');
@@ -687,7 +723,7 @@ function handleSendEnvelope() {
 
     const sendToChat = document.getElementById('env-send-to-chat').checked;
     if (sendToChat) {
-        addMessage({ id: Date.now(), sender: 'user', text: `【寄出的信】\n${text}`, timestamp: new Date(), status: 'sent', type: 'normal' });
+        addMessage({ id: Date.now(), sender: 'user', text: '【寄出的信】\n' + text, timestamp: new Date(), status: 'sent', type: 'normal' });
     }
 
     const minHours = 10, maxHours = 24;
@@ -703,11 +739,11 @@ function handleSendEnvelope() {
 
     cancelEnvelopeCompose();
     switchEnvTab('outbox');
-    showNotification(`信件已寄出，预计 ${Math.floor(randomHours)} 小时后收到回信 ✉️`, 'success');
+    showNotification('信件已寄出，预计 ' + Math.floor(randomHours) + ' 小时后收到回信 ✉️', 'success');
 }
 
 // =============================================
-// 注入时空来信 HTML 和 设置开关
+// 注入时空来信 HTML（使用统一样式）
 // =============================================
 
 function _injectTimemailHTML() {
@@ -731,6 +767,9 @@ function _injectTimemailHTML() {
         时空来信
         <span id="env-timemail-badge" class="env-badge" style="display:none;"></span>
     `;
+    
+    // 应用与其他 Tab 相同的样式
+    timemailTab.style.cssText = 'flex:1;padding:10px 4px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;';
     
     inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
     
