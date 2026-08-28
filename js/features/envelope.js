@@ -760,10 +760,88 @@ function handleSendEnvelope() {
 // =============================================
 
 function _injectTimemailHTML() {
-    // 防止重复注入
     if (document.getElementById('env-tab-timemail')) {
         return;
     }
+    
+    var tabBar = document.querySelector('.env-tab-bar');
+    if (!tabBar) return;
+    
+    var inboxTab = document.getElementById('env-tab-inbox');
+    if (!inboxTab) return;
+    
+    // ===== 统一风格：先改"寄出的信"和"收到的信" =====
+    var outboxTab = document.getElementById('env-tab-outbox');
+    var inboxTabExisting = document.getElementById('env-tab-inbox');
+    
+    var tabsToUpdate = [outboxTab, inboxTabExisting];
+    for (var ti = 0; ti < tabsToUpdate.length; ti++) {
+        var tab = tabsToUpdate[ti];
+        if (tab) {
+            var iconSvg = tab.querySelector('svg');
+            var iconHtml = iconSvg ? iconSvg.outerHTML : '';
+            var isOutbox = tab.id === 'env-tab-outbox';
+            var mainText = isOutbox ? '寄出的信' : '收到的信';
+            var subText = isOutbox ? 'LETTERS · SENT' : 'LETTERS · RECEIVED';
+            var badgeId = isOutbox ? 'env-outbox-badge' : 'env-inbox-badge';
+            
+            tab.style.cssText = 'flex:1;padding:6px 2px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;';
+            tab.innerHTML = 
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.3;">' +
+                    iconHtml +
+                    '<span style="font-size:11px;font-weight:600;letter-spacing:0.3px;">' + mainText + '</span>' +
+                    '<span style="font-size:8px;opacity:0.5;letter-spacing:0.2px;font-weight:400;">' + subText + '</span>' +
+                '</div>' +
+                '<span id="' + badgeId + '" class="env-badge" style="display:none;"></span>';
+        }
+    }
+    
+    // ===== 创建"时空来信"Tab（使用完全相同的样式） =====
+    var timemailTab = document.createElement('button');
+    timemailTab.id = 'env-tab-timemail';
+    timemailTab.className = 'env-tab-btn';
+    timemailTab.setAttribute('onclick', "switchEnvTab('timemail')");
+    timemailTab.style.cssText = 'flex:1;padding:6px 2px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);border-bottom:2px solid transparent;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;';
+    timemailTab.innerHTML = 
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.3;">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:middle;flex-shrink:0;">' +
+                '<circle cx="12" cy="12" r="10"/>' +
+                '<polyline points="12 6 12 12 16 14"/>' +
+            '</svg>' +
+            '<span style="font-size:11px;font-weight:600;letter-spacing:0.3px;">时空来信</span>' +
+            '<span style="font-size:8px;opacity:0.5;letter-spacing:0.2px;font-weight:400;">我们在命运的两端</span>' +
+        '</div>' +
+        '<span id="env-timemail-badge" class="env-badge" style="display:none;"></span>';
+    
+    // 插入到"收到的信"后面
+    inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
+    
+    // 默认激活"寄出的信"
+    if (outboxTab) {
+        outboxTab.style.color = 'var(--text-primary)';
+        outboxTab.style.borderBottom = '2px solid var(--accent-color)';
+        outboxTab.style.background = 'var(--secondary-bg)';
+    }
+    
+    // ===== 创建时空来信面板 =====
+    var inboxSection = document.getElementById('env-inbox-section');
+    if (!inboxSection) return;
+    
+    var timemailSection = document.createElement('div');
+    timemailSection.id = 'env-timemail-section';
+    timemailSection.style.cssText = 'display:none;padding:0 0 8px;';
+    timemailSection.innerHTML = 
+        '<div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>' +
+        '<div id="env-timemail-empty" style="text-align:center;padding:40px 20px;color:var(--text-secondary);">' +
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+            '<div style="font-size:14px;font-weight:500;margin-top:4px;">还没有时空来信</div>' +
+            '<div style="font-size:12px;margin-top:6px;opacity:0.6;">开启"主动给我写信"后，系统会随机给你写信~</div>' +
+        '</div>';
+    
+    inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
+    
+    localStorage.setItem('timemail_injected', 'true');
+}
     
     var tabBar = document.querySelector('.env-tab-bar');
     if (!tabBar) return;
