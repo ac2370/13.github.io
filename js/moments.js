@@ -1,4 +1,4 @@
-// moments.js - 朋友圈功能（含封面设置）
+// moments.js - 朋友圈功能（含完整关闭按钮）
 (function() {
     'use strict';
 
@@ -86,14 +86,12 @@
         }
     }
 
-    // ---- 封面管理 ----
     function _getCoverImage() {
         try { return localStorage.getItem(COVER_KEY) || ''; } catch { return ''; }
     }
     function _setCoverImage(data) { localStorage.setItem(COVER_KEY, data); }
     function _clearCoverImage() { localStorage.removeItem(COVER_KEY); }
 
-    // ---- 数据管理 ----
     function _getData() {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { posts: [], lastGenerateDate: '' }; } catch { return { posts: [], lastGenerateDate: '' }; }
     }
@@ -172,7 +170,7 @@
         _setData(data);
     }
 
-    // ---- 梦角动态模板 ----
+    // 梦角动态模板
     var PARTNER_POST_TEMPLATES = [
         '今天的阳光像你一样温暖。',
         '做了一个很长的梦，醒来只记得你的名字。',
@@ -232,9 +230,7 @@
         return date.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     }
 
-    // =============================================
     // 封面设置弹窗
-    // =============================================
     function showCoverSettings() {
         var old = document.getElementById('cover-settings-modal');
         if (old) old.remove();
@@ -330,7 +326,6 @@
                     return;
                 }
             }
-            // 刷新封面
             var coverEl = document.getElementById('moments-cover');
             if (coverEl) {
                 var bg = _getCoverImage();
@@ -354,9 +349,7 @@
         }
     }
 
-    // =============================================
     // 渲染Tab内容
-    // =============================================
     function renderTab(tab, container) {
         var posts = _getPosts();
         var filtered = [];
@@ -465,9 +458,7 @@
         }
     }
 
-    // =============================================
-    // 发布、评论、朋友圈主界面
-    // =============================================
+    // 发布新动态
     function showPublishModal() {
         var old = document.getElementById('publish-modal');
         if (old) old.remove();
@@ -507,6 +498,7 @@
         };
     }
 
+    // 评论
     function showCommentModal(postId) {
         var old = document.getElementById('comment-modal');
         if (old) old.remove();
@@ -588,7 +580,7 @@
     }
 
     // =============================================
-    // 朋友圈主界面（含封面）
+    // 朋友圈主界面（含顶部关闭 + 底部关闭）
     // =============================================
     window.openMoments = function() {
         _generatePartnerPosts();
@@ -612,7 +604,6 @@
         coverSection.id = 'moments-cover';
         coverSection.style.cssText = 'position:relative;width:100%;height:160px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;transition:background 0.3s ease;';
 
-        // 封面上的文字装饰（类似截图中的格言）
         var coverText = document.createElement('div');
         coverText.style.cssText = 'position:absolute;bottom:16px;left:16px;right:16px;color:rgba(255,255,255,0.9);text-shadow:0 2px 12px rgba(0,0,0,0.3);';
         coverText.innerHTML = 
@@ -620,77 +611,15 @@
             '<div style="font-size:11px;opacity:0.7;margin-top:2px;letter-spacing:1px;font-weight:300;">— Vow is a rain with time difference.</div>';
         coverSection.appendChild(coverText);
 
-        // 右上角更换封面按钮（仅点击封面触发）
         var coverBtnHint = document.createElement('div');
         coverBtnHint.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);padding:4px 10px;border-radius:12px;font-size:11px;color:rgba(255,255,255,0.8);pointer-events:none;';
         coverBtnHint.textContent = '📷 更换封面';
         coverSection.appendChild(coverBtnHint);
 
-        // 点击封面打开设置
         coverSection.addEventListener('click', function() {
             showCoverSettings();
         });
 
         inner.appendChild(coverSection);
 
-        // ===== Tab切换 =====
-        var tabBar = document.createElement('div');
-        tabBar.style.cssText = 'display:flex;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--primary-bg);';
-        tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:10px;border:none;background:var(--secondary-bg);font-weight:700;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);">我的</button>' +
-            '<button class="moments-tab" data-tab="partner" style="flex:1;padding:10px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);">' + _getPartnerName() + '的</button>';
-        inner.appendChild(tabBar);
-
-        // ===== 内容列表 =====
-        var contentContainer = document.createElement('div');
-        contentContainer.id = 'moments-content';
-        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px;background:var(--secondary-bg);';
-
-        renderTab('me', contentContainer);
-        inner.appendChild(contentContainer);
-
-        // ===== 底部发布按钮 =====
-        var footer = document.createElement('div');
-        footer.style.cssText = 'display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);backdrop-filter:blur(8px);';
-        var addBtn = document.createElement('button');
-        addBtn.id = 'moments-add-btn';
-        addBtn.style.cssText = 'width:40px;height:40px;border-radius:50%;background:#000;color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
-        addBtn.textContent = '+';
-        addBtn.title = '发布新动态';
-        addBtn.onclick = function() { showPublishModal(); };
-        footer.appendChild(addBtn);
-        inner.appendChild(footer);
-
-        wrap.appendChild(inner);
-        document.body.appendChild(wrap);
-
-        // ===== 事件绑定 =====
-        document.getElementById('moments-close').onclick = function() { wrap.remove(); };
-        wrap.addEventListener('click', function(e) { if (e.target === wrap) wrap.remove(); });
-
-        tabBar.querySelectorAll('.moments-tab').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                tabBar.querySelectorAll('.moments-tab').forEach(function(b) {
-                    b.classList.remove('active');
-                    b.style.background = 'transparent';
-                    b.style.color = 'var(--text-secondary)';
-                });
-                this.classList.add('active');
-                this.style.background = 'var(--secondary-bg)';
-                this.style.color = 'var(--text-primary)';
-                var tab = this.dataset.tab;
-                renderTab(tab, contentContainer);
-                var addBtnEl = document.getElementById('moments-add-btn');
-                if (addBtnEl) addBtnEl.style.display = tab === 'me' ? 'flex' : 'none';
-            });
-        });
-    };
-
-    // 页面加载时生成梦角动态
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() {
-            _generatePartnerPosts();
-        }, 1500);
-    });
-
-    console.log('[朋友圈] 模块已加载（含封面设置）');
-})();
+        // ===== 
