@@ -3,6 +3,272 @@ let currentEnvTab = 'outbox';
 let editingEnvId = null; 
 let editingEnvSection = null; 
 
+// =============================================
+// 时空来信数据
+// =============================================
+var TIMEMAIL_KEY = 'timemail_data';
+var TIMEMAIL_ENABLED_KEY = 'timemail_enabled';
+
+function _getTimemailData() {
+    try {
+        return JSON.parse(localStorage.getItem(TIMEMAIL_KEY)) || { letters: [], lastSendDate: '' };
+    } catch { return { letters: [], lastSendDate: '' }; }
+}
+
+function _setTimemailData(data) {
+    localStorage.setItem(TIMEMAIL_KEY, JSON.stringify(data));
+}
+
+function _getReplyCardsForTimemail() {
+    var cards = [];
+    if (window.customReplies && Array.isArray(window.customReplies)) {
+        cards = window.customReplies.map(function(c) {
+            return typeof c === 'string' ? c : (c.text || c.label || '');
+        });
+    }
+    try {
+        var stored = localStorage.getItem('customReplies');
+        if (stored) {
+            var parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+                cards = parsed.map(function(c) {
+                    return typeof c === 'string' ? c : (c.text || c.label || '');
+                });
+            }
+        }
+    } catch(e) {}
+    if (cards.length === 0) {
+        cards = ['早安', '晚安', '想你', '抱抱', '亲亲', '开心', '好梦', '今天超棒', '别担心', '有我在'];
+    }
+    var result = [];
+    for (var i = 0; i < cards.length; i++) {
+        var c = cards[i];
+        if (c && c.trim()) {
+            if (result.indexOf(c) === -1) result.push(c);
+        }
+    }
+    return result;
+}
+
+function _generateTimemail() {
+    var cards = _getReplyCardsForTimemail();
+    if (cards.length < 2) {
+        cards = ['早安', '晚安', '想你', '抱抱', '亲亲', '开心', '好梦', '今天超棒', '别担心', '有我在'];
+    }
+    var shuffled = cards.slice();
+    for (var si = shuffled.length - 1; si > 0; si--) {
+        var sj = Math.floor(Math.random() * (si + 1));
+        var st = shuffled[si];
+        shuffled[si] = shuffled[sj];
+        shuffled[sj] = st;
+    }
+    var count = 4 + Math.floor(Math.random() * 3);
+    var picked = shuffled.slice(0, Math.min(count, shuffled.length));
+    return picked;
+}
+
+function _sendTimemail() {
+    var letters = _generateTimemail();
+    var content = letters.join('。') + '。';
+    
+    var data = _getTimemailData();
+    var letter = {
+        id: 'timemail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        content: content,
+        sentences: letters,
+        timestamp: new Date().toISOString(),
+        read: false
+    };
+    data.letters.unshift(letter);
+    data.lastSendDate = new Date().toDateString();
+    _setTimemailData(data);
+    
+    var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+    if (typeof addMessage === 'function') {
+        addMessage({
+            id: Date.now() + Math.random(),
+            sender: 'user',
+            text: '✉️ ' + pName + ' 给你寄来了一封时空来信 💌',
+            timestamp: new Date(),
+            type: 'system',
+            status: 'sent'
+        });
+        if (typeof playSound === 'function') playSound('send');
+    }
+    
+    updateTimemailBadge();
+    renderTimemailList();
+    return letter;
+}
+
+function _autoSendTimemail() {
+    var enabled = localStorage.getItem(TIMEMAIL_ENABLED_KEY) === 'true';
+    if (!enabled) return;
+    
+    var data = _getTimemailData();
+    var today = new Date().toDateString();
+    
+    var todayLetters = data.letters.filter(function(l) {
+        return new Date(l.timestamp).toDateString() === today;
+    });
+    if (todayLetters.length >= 3) return;
+    
+    if (Math.random() > 0.3) return;
+    
+    _sendTimemail();
+}
+
+function renderTimemailList() {
+    var container = document.getElementById('env-timemail-list');
+    var empty = document.getElementById('env-timemail-empty');
+    if (!container) return;
+    
+    var data = _getTimemailData();
+    var letters = data.letters;
+    
+    if (letters.length === 0) {
+        if (empty) empty.style.display = 'block';
+        container.innerHTML = '';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    
+    var html = '';
+    for (var i = 0; i < letters.length; i++) {
+        var l = letters[i];
+        var date = new Date(l.timestamp);
+        var dateStr = date.getFullYear() + '/' + 
+            String(date.getMonth() + 1).padStart(2, '0') + '/' + 
+            String(date.getDate()).padStart(2, '0') + ' ' +
+            String(date.getHours()).padStart(2, '0') + ':' +
+            String(date.getMinutes()).padStart(2, '0');
+        var statusText = l.read ? '已读' : '未读';
+        var statusColor = l.read ? 'var(--text-secondary)' : 'var(--accent-color)';
+        var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+        var preview = l.content.length > 40 ? l.content.substring(0, 40) + '…' : l.content;
+        
+        html += '<div class="timemail-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                '<span style="font-weight:600;color:var(--text-primary);font-size:14px;">✉️ 来自 ' + _escHtml(pName) + '</span>' +
+                '<span style="font-size:11px;color:' + statusColor + ';">' + statusText + '</span>' +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">' + _escHtml(preview) + '</div>' +
+            '<div style="font-size:10px;color:var(--text-secondary);opacity:0.6;margin-top:4px;">' + dateStr + '</div>' +
+        '</div>';
+    }
+    container.innerHTML = html;
+}
+
+function updateTimemailBadge() {
+    var data = _getTimemailData();
+    var unread = data.letters.filter(function(l) { return !l.read; }).length;
+    var badge = document.getElementById('env-timemail-badge');
+    if (badge) {
+        if (unread > 0) {
+            badge.style.display = 'inline-block';
+            badge.textContent = unread;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+window.viewTimemail = function(id) {
+    var data = _getTimemailData();
+    var letter = null;
+    for (var i = 0; i < data.letters.length; i++) {
+        if (data.letters[i].id === id) {
+            letter = data.letters[i];
+            break;
+        }
+    }
+    if (!letter) { 
+        if (typeof showNotification === 'function') showNotification('信件不存在', 'error');
+        return; 
+    }
+    
+    letter.read = true;
+    _setTimemailData(data);
+    updateTimemailBadge();
+    renderTimemailList();
+    
+    var old = document.getElementById('timemail-view-modal');
+    if (old) old.remove();
+    
+    var wrap = document.createElement('div');
+    wrap.id = 'timemail-view-modal';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:10060;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
+    
+    var inner = document.createElement('div');
+    inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:28px 24px;width:min(400px, 90vw);max-height:70vh;overflow-y:auto;border:1px solid var(--border-color);';
+    
+    var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+    var date = new Date(letter.timestamp);
+    var dateStr = date.getFullYear() + '年' + 
+        String(date.getMonth() + 1).padStart(2, '0') + '月' + 
+        String(date.getDate()).padStart(2, '0') + '日 ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0');
+    
+    var sentencesHtml = '';
+    for (var si = 0; si < letter.sentences.length; si++) {
+        sentencesHtml += '<div style="padding:6px 0;border-bottom:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);">' +
+            '<span style="font-size:14px;color:var(--text-primary);">✦ ' + _escHtml(letter.sentences[si]) + '</span>' +
+        '</div>';
+    }
+    
+    inner.innerHTML = 
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+            '<span style="font-size:20px;font-weight:700;color:var(--text-primary);">⏳ 时空来信</span>' +
+            '<button id="timemail-view-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>' +
+        '</div>' +
+        '<div style="text-align:center;padding:8px 0 16px;border-bottom:1px dashed var(--border-color);margin-bottom:12px;">' +
+            '<span style="font-size:13px;color:var(--text-secondary);">✉️ 来自 ' + _escHtml(pName) + '</span>' +
+            '<span style="display:block;font-size:11px;color:var(--text-secondary);opacity:0.6;margin-top:2px;">' + dateStr + '</span>' +
+        '</div>' +
+        '<div style="margin-bottom:12px;">' + sentencesHtml + '</div>' +
+        '<div style="text-align:center;padding-top:12px;border-top:1px dashed var(--border-color);">' +
+            '<span style="font-size:12px;color:var(--text-secondary);opacity:0.6;">— 跨越时空的思念 —</span>' +
+        '</div>';
+    
+    wrap.appendChild(inner);
+    document.body.appendChild(wrap);
+    
+    document.getElementById('timemail-view-close').onclick = function() { wrap.remove(); };
+    wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+};
+
+window.toggleTimemailAuto = function() {
+    var current = localStorage.getItem(TIMEMAIL_ENABLED_KEY) === 'true';
+    var next = !current;
+    localStorage.setItem(TIMEMAIL_ENABLED_KEY, String(next));
+    if (typeof showNotification === 'function') {
+        showNotification(next ? '时空来信已开启 ✨ 对方会随机给你写信' : '时空来信已关闭', 'info');
+    }
+    var toggle = document.getElementById('timemail-toggle');
+    if (toggle) toggle.classList.toggle('active', next);
+    var knob = document.querySelector('#timemail-toggle .setting-pill-knob');
+    if (knob) {
+        knob.style.transform = next ? 'translateX(20px)' : 'translateX(0)';
+    }
+    var switchEl = document.querySelector('#timemail-toggle .setting-pill-switch');
+    if (switchEl) {
+        switchEl.style.background = next ? 'var(--accent-color)' : 'var(--border-color)';
+    }
+    return next;
+};
+
+window.renderTimemailList = renderTimemailList;
+window.updateTimemailBadge = updateTimemailBadge;
+
+function _escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// =============================================
+// 原信封投递代码
+// =============================================
+
 async function loadEnvelopeData() {
     const saved = await localforage.getItem(getStorageKey('envelopeData'));
     if (saved) envelopeData = saved;
@@ -139,16 +405,37 @@ function generateEnvelopeReplyText() {
     return replyContent;
 }
 
-
+// =============================================
+// switchEnvTab - 添加了 timemail 支持
+// =============================================
 window.switchEnvTab = function(tab) {
     currentEnvTab = tab;
-    document.getElementById('env-tab-outbox').classList.toggle('active', tab === 'outbox');
-    document.getElementById('env-tab-inbox').classList.toggle('active', tab === 'inbox');
-    document.getElementById('env-outbox-section').style.display = tab === 'outbox' ? 'block' : 'none';
-    document.getElementById('env-inbox-section').style.display = tab === 'inbox' ? 'block' : 'none';
-    document.getElementById('env-compose-form').style.display = 'none';
-    document.getElementById('env-main-close-btn').style.display = 'flex';
-    renderEnvelopeLists();
+    var outboxBtn = document.getElementById('env-tab-outbox');
+    var inboxBtn = document.getElementById('env-tab-inbox');
+    var timemailBtn = document.getElementById('env-tab-timemail');
+    
+    if (outboxBtn) outboxBtn.classList.toggle('active', tab === 'outbox');
+    if (inboxBtn) inboxBtn.classList.toggle('active', tab === 'inbox');
+    if (timemailBtn) timemailBtn.classList.toggle('active', tab === 'timemail');
+    
+    var outboxSection = document.getElementById('env-outbox-section');
+    var inboxSection = document.getElementById('env-inbox-section');
+    var timemailSection = document.getElementById('env-timemail-section');
+    var composeForm = document.getElementById('env-compose-form');
+    var mainCloseBtn = document.getElementById('env-main-close-btn');
+    
+    if (outboxSection) outboxSection.style.display = tab === 'outbox' ? 'block' : 'none';
+    if (inboxSection) inboxSection.style.display = tab === 'inbox' ? 'block' : 'none';
+    if (timemailSection) timemailSection.style.display = tab === 'timemail' ? 'block' : 'none';
+    if (composeForm) composeForm.style.display = 'none';
+    if (mainCloseBtn) mainCloseBtn.style.display = 'flex';
+    
+    if (tab === 'timemail') {
+        renderTimemailList();
+        updateTimemailBadge();
+    } else {
+        renderEnvelopeLists();
+    }
 };
 
 function renderEnvelopeLists() {
@@ -419,3 +706,91 @@ function handleSendEnvelope() {
     showNotification(`信件已寄出，预计 ${Math.floor(randomHours)} 小时后收到回信 ✉️`, 'success');
 }
 
+// =============================================
+// 注入时空来信 HTML 和 设置开关
+// =============================================
+
+function _injectTimemailHTML() {
+    if (document.getElementById('env-tab-timemail')) return;
+    
+    var tabBar = document.querySelector('.env-tab-bar');
+    if (!tabBar) return;
+    
+    var inboxTab = document.getElementById('env-tab-inbox');
+    if (!inboxTab) return;
+    
+    var timemailTab = document.createElement('button');
+    timemailTab.id = 'env-tab-timemail';
+    timemailTab.className = 'env-tab-btn';
+    timemailTab.setAttribute('onclick', "switchEnvTab('timemail')");
+    timemailTab.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        时空来信
+        <span id="env-timemail-badge" class="env-badge" style="display:none;"></span>
+    `;
+    
+    inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
+    
+    var inboxSection = document.getElementById('env-inbox-section');
+    if (!inboxSection) return;
+    
+    var timemailSection = document.createElement('div');
+    timemailSection.id = 'env-timemail-section';
+    timemailSection.style.cssText = 'display:none;padding:0 0 8px;';
+    timemailSection.innerHTML = `
+        <div id="env-timemail-list" style="padding:12px 4px;min-height:200px;"></div>
+        <div id="env-timemail-empty" style="text-align:center;padding:40px 20px;color:var(--text-secondary);">
+            <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+            <div style="font-size:15px;font-weight:600;">还没有时空来信</div>
+            <div style="font-size:13px;opacity:0.7;margin-top:4px;">开启"主动给我写信"后，系统会随机给你写信~</div>
+        </div>
+    `;
+    
+    inboxSection.parentNode.insertBefore(timemailSection, inboxSection.nextSibling);
+}
+
+function _injectTimemailToggle() {
+    var autoSendToggle = document.getElementById('auto-send-toggle');
+    if (!autoSendToggle) return;
+    if (document.getElementById('timemail-toggle')) return;
+    
+    var isEnabled = localStorage.getItem(TIMEMAIL_ENABLED_KEY) === 'true';
+    
+    var timemailRow = document.createElement('div');
+    timemailRow.id = 'timemail-toggle';
+    timemailRow.className = 'setting-pill-row';
+    timemailRow.style.cssText = 'border-top:1px solid var(--border-color);cursor:pointer;';
+    timemailRow.setAttribute('onclick', 'toggleTimemailAuto()');
+    
+    timemailRow.innerHTML = `
+        <span class="setting-pill-icon"><i class="fas fa-clock"></i></span>
+        <span class="setting-pill-label">时空来信 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后对方会随机给你写信</span></span>
+        <div class="setting-pill-switch" style="background:${isEnabled ? 'var(--accent-color)' : 'var(--border-color)'};">
+            <div class="setting-pill-knob" style="transform:${isEnabled ? 'translateX(20px)' : 'translateX(0)'};"></div>
+        </div>
+    `;
+    
+    autoSendToggle.parentNode.insertBefore(timemailRow, autoSendToggle.nextSibling);
+}
+
+// =============================================
+// 页面初始化
+// =============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        _injectTimemailHTML();
+        _injectTimemailToggle();
+        renderTimemailList();
+        updateTimemailBadge();
+        _autoSendTimemail();
+        setInterval(function() {
+            _autoSendTimemail();
+        }, 300000);
+    }, 500);
+});
+
+console.log('[信封投递] 时空来信功能已加载');
