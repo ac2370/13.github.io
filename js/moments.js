@@ -1,4 +1,4 @@
-// moments.js - 朋友圈功能（完整版 + 头像与昵称管理）
+// moments.js - 朋友圈功能（完整版 + 头像与昵称管理）- iOS兼容修复版
 (function() {
     'use strict';
 
@@ -41,10 +41,7 @@
     }
 
     function _getGroupMembers() {
-        // 🔥 修改：默认返回空数组，不再预置沈星回和陆沉
         var defaultMembers = [];
-        
-        // 1. 优先从 localStorage 读取群成员
         try {
             var stored = localStorage.getItem('moments_group_members');
             if (stored) {
@@ -54,8 +51,6 @@
                 }
             }
         } catch(e) {}
-
-        // 2. 尝试从 group_chat_data 读取
         try {
             var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
             if (groupData.members && groupData.members.length > 0) {
@@ -63,30 +58,21 @@
                     return { name: m.name || m, avatar: m.avatar || '' };
                 });
                 if (members.length > 0) {
-                    // 保存到 moments_group_members 以便同步
-                    _saveGroupMembers(members);
                     return members;
                 }
             }
         } catch(e) {}
-
-        // 3. 尝试从 groupMembers 读取
         try {
             var storedMembers = localStorage.getItem('groupMembers');
             if (storedMembers) {
                 var parsed = JSON.parse(storedMembers);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    var members = parsed.map(function(m) {
+                    return parsed.map(function(m) {
                         return { name: typeof m === 'string' ? m : (m.name || m), avatar: m.avatar || '' };
                     });
-                    _saveGroupMembers(members);
-                    return members;
                 }
             }
         } catch(e) {}
-
-        // 4. 🔥 修改：不再返回默认的沈星回和陆沉，而是返回空数组
-        // 但是为了新用户首次使用不至于完全空白，保存一个示例空数组
         _saveGroupMembers(defaultMembers);
         return defaultMembers;
     }
@@ -97,10 +83,7 @@
 
     function _getRandomGroupMember() {
         var members = _getGroupMembers();
-        if (members.length === 0) {
-            // 如果没有成员，返回一个占位对象（但不会真正发布）
-            return { name: '未命名', avatar: '' };
-        }
+        if (members.length === 0) return { name: '未命名', avatar: '' };
         return members[Math.floor(Math.random() * members.length)];
     }
 
@@ -212,7 +195,6 @@
             }
         }
         _saveGroupMembers(members);
-        // 更新帖子中的成员名字
         var data = _getData();
         var updated = false;
         for (var pi = 0; pi < data.posts.length; pi++) {
@@ -228,7 +210,6 @@
         var members = _getGroupMembers();
         members.push({ name: name.trim(), avatar: avatar || '' });
         _saveGroupMembers(members);
-        // 🔥 新增：同步到 group_chat_data
         try {
             var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
             if (!groupData.members) groupData.members = [];
@@ -241,13 +222,11 @@
         var members = _getGroupMembers();
         members = members.filter(function(m) { return m.name !== name; });
         _saveGroupMembers(members);
-        // 同步到 group_chat_data
         try {
             var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
             groupData.members = members;
             localStorage.setItem('group_chat_data', JSON.stringify(groupData));
         } catch(e) {}
-        // 删除该成员的所有帖子
         var data = _getData();
         data.posts = data.posts.filter(function(p) {
             return !(p.author === 'partner' && p.memberName === name);
@@ -306,13 +285,11 @@
             post.likes += 1;
             post.likedByMe = true;
             if (post.author === 'partner') {
-                // 🔥 改进：自动回赞延迟缩短，并且增加持久化标记
-                var delay = 3000 + Math.random() * 120000; // 3秒到2分钟
-                var likeTimeoutId = setTimeout(function() {
+                var delay = 3000 + Math.random() * 120000;
+                setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = freshPosts.find(function(p) { return p.id === postId; });
                     if (freshPost && freshPost.likedByMe) {
-                        // 检查是否已经回赞过
                         if (!freshPost._partnerRepliedLike) {
                             freshPost.likes += 1;
                             freshPost._partnerRepliedLike = true;
@@ -320,13 +297,9 @@
                             var container = document.getElementById('moments-content');
                             var activeTab = document.querySelector('.moments-tab.active');
                             if (container && activeTab) renderTab(activeTab.dataset.tab, container);
-                            _notify('💕 ' + (freshPost.memberName || _getPartnerName()) + ' 赞了你', 'info', 2000);
                         }
                     }
                 }, delay);
-                // 存储timeout ID以便清理
-                if (!post._likeTimeouts) post._likeTimeouts = [];
-                post._likeTimeouts.push(likeTimeoutId);
             }
         }
         _setData(data);
@@ -363,7 +336,6 @@
         _setData(data);
     }
 
-    // 🔥 新增：外部调用的成员发布动态接口
     window.partnerPublishPost = function(text, memberName) {
         if (!text || !text.trim()) return;
         var members = _getGroupMembers();
@@ -384,7 +356,6 @@
             return;
         }
         var post = _addPost('partner', text, new Date().toISOString(), member.name, member.avatar);
-        // 刷新朋友圈界面
         var container = document.getElementById('moments-content');
         var activeTab = document.querySelector('.moments-tab.active');
         if (container && activeTab) renderTab(activeTab.dataset.tab, container);
@@ -397,9 +368,7 @@
         var today = new Date().toDateString();
         var members = _getGroupMembers();
         
-        // 🔥 修改：如果没有成员，不生成任何动态
         if (members.length === 0) {
-            // 只记录日期，但不生成帖子
             if (data.lastGenerateDate !== today) {
                 data.lastGenerateDate = today;
                 _setData(data);
@@ -407,13 +376,11 @@
             return;
         }
 
-        // 检查今天是否已经生成过，且有partner帖子
         var existingPartnerPosts = data.posts.filter(function(p) { return p.author === 'partner'; });
         if (data.lastGenerateDate === today && existingPartnerPosts.length > 0) {
             return;
         }
 
-        // 删除旧的partner帖子
         data.posts = data.posts.filter(function(p) { return p.author !== 'partner'; });
         
         var activeMembers = members.filter(function(m) { return m.name && m.name.trim(); });
@@ -454,10 +421,11 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'cover-settings-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        // iOS兼容：使用-webkit-前缀
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
             '<span style="font-size:18px;font-weight:700;">🖼️ 更换封面</span>' +
             '<button id="cover-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
@@ -465,9 +433,9 @@
             '<div style="margin-bottom:12px;">' +
             '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">选择一张图片作为朋友圈封面</div>' +
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
-            '<button id="cover-upload-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">📤 上传图片</button>' +
-            '<button id="cover-url-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);">🔗 图片URL</button>' +
-            '<button id="cover-reset-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:#ff6b6b;cursor:pointer;font-size:13px;font-family:var(--font-family);">🗑️ 恢复默认</button>' +
+            '<button id="cover-upload-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);-webkit-tap-highlight-color:transparent;">📤 上传图片</button>' +
+            '<button id="cover-url-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:var(--font-family);-webkit-tap-highlight-color:transparent;">🔗 图片URL</button>' +
+            '<button id="cover-reset-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:#ff6b6b;cursor:pointer;font-size:13px;font-family:var(--font-family);-webkit-tap-highlight-color:transparent;">🗑️ 恢复默认</button>' +
             '</div>' +
             '<input type="file" id="cover-file-input" accept="image/*" style="display:none;">' +
             '</div>' +
@@ -476,8 +444,8 @@
             '<div style="padding:6px 10px;font-size:11px;color:var(--text-secondary);text-align:center;background:rgba(var(--primary-bg-rgb),0.6);">当前封面预览</div>' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-            '<button id="cover-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">关闭</button>' +
-            '<button id="cover-apply" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">应用到封面</button>' +
+            '<button id="cover-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;">关闭</button>' +
+            '<button id="cover-apply" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">应用到封面</button>' +
             '</div>';
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
@@ -575,7 +543,7 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'avatar-settings-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10055;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10055;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
         var inner = document.createElement('div');
         inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:20px;width:min(400px, 92vw);max-height:85vh;overflow-y:auto;border:1px solid var(--border-color);';
@@ -584,7 +552,6 @@
         var myAvatar = _getMyAvatarSetting();
         var members = _getGroupMembers();
 
-        // 构建成员列表HTML
         var memberListHtml = '';
         if (members.length === 0) {
             memberListHtml = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">还没有群成员，点击下方添加 ✨</div>';
@@ -598,8 +565,8 @@
                     (displayAvatar ? '<img src="' + _esc(displayAvatar) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:16px;">🌸</span>') +
                     '</div>' +
                     '<span style="font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(m.name) + '</span>' +
-                    '<button onclick="editMember(\'' + _esc(m.name) + '\')" style="padding:4px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;">编辑</button>' +
-                    '<button onclick="removeMember(\'' + _esc(m.name) + '\')" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;font-size:13px;cursor:pointer;">✕</button>' +
+                    '<button onclick="editMember(\'' + _esc(m.name) + '\')" style="padding:4px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">编辑</button>' +
+                    '<button onclick="removeMember(\'' + _esc(m.name) + '\')" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">✕</button>' +
                     '</div>';
             }
         }
@@ -607,9 +574,8 @@
         inner.innerHTML =
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
                 '<span style="font-size:18px;font-weight:700;">👤 头像与昵称</span>' +
-                '<button id="avatar-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">✕</button>' +
+                '<button id="avatar-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
-            // === 我的部分 ===
             '<div style="margin-bottom:16px;background:rgba(var(--accent-color-rgb),0.04);border-radius:12px;padding:14px 16px;border:1px solid rgba(var(--accent-color-rgb),0.08);">' +
                 '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--accent-color);">👤 我</div>' +
                 '<div style="display:flex;align-items:center;gap:12px;">' +
@@ -619,19 +585,18 @@
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="font-size:15px;font-weight:600;color:var(--text-primary);">' + _esc(myName) + '</div>' +
                     '</div>' +
-                    '<button onclick="editMyInfo()" style="padding:6px 14px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-secondary);font-size:12px;cursor:pointer;">编辑</button>' +
+                    '<button onclick="editMyInfo()" style="padding:6px 14px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-secondary);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;">编辑</button>' +
                 '</div>' +
             '</div>' +
-            // === 群成员部分 ===
             '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
                     '<span style="font-size:13px;font-weight:600;color:var(--text-primary);">👥 群成员</span>' +
-                    '<button onclick="addMember()" style="padding:5px 14px;border:none;border-radius:10px;background:var(--accent-color);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">+ 添加</button>' +
+                    '<button onclick="addMember()" style="padding:5px 14px;border:none;border-radius:10px;background:var(--accent-color);color:#fff;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">+ 添加</button>' +
                 '</div>' +
                 memberListHtml +
             '</div>' +
             '<div style="display:flex;gap:10px;margin-top:4px;">' +
-                '<button id="avatar-close-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">关闭</button>' +
+                '<button id="avatar-close-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">关闭</button>' +
             '</div>';
 
         wrap.appendChild(inner);
@@ -654,14 +619,14 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'edit-my-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10056;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10056;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML =
             '<div style="display:flex;justify-content:space-between;margin-bottom:16px;">' +
                 '<span style="font-size:18px;font-weight:700;">✏️ 编辑我的信息</span>' +
-                '<button id="edit-my-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">✕</button>' +
+                '<button id="edit-my-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:16px;">' +
                 '<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;background:var(--secondary-bg);position:relative;cursor:pointer;" onclick="document.getElementById(\'edit-my-avatar-input\').click()">' +
@@ -674,13 +639,13 @@
                     '<input id="edit-my-name-input" type="text" value="' + _esc(myName) + '" maxlength="12" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;box-sizing:border-box;">' +
                 '</div>' +
                 '<div style="width:100%;display:flex;gap:8px;">' +
-                    '<button onclick="document.getElementById(\'edit-my-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;">🔗 图片URL</button>' +
+                    '<button onclick="document.getElementById(\'edit-my-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">🔗 图片URL</button>' +
                     '<input id="edit-my-avatar-url-input" type="text" placeholder="输入图片URL" style="display:none;flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:11px;box-sizing:border-box;">' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-                '<button id="edit-my-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">取消</button>' +
-                '<button id="edit-my-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">保存</button>' +
+                '<button id="edit-my-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+                '<button id="edit-my-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">保存</button>' +
             '</div>';
 
         wrap.appendChild(inner);
@@ -752,14 +717,14 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'edit-member-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10057;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10057;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML =
             '<div style="display:flex;justify-content:space-between;margin-bottom:16px;">' +
                 '<span style="font-size:18px;font-weight:700;">✏️ 编辑成员</span>' +
-                '<button id="edit-member-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">✕</button>' +
+                '<button id="edit-member-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:16px;">' +
                 '<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;background:var(--secondary-bg);position:relative;cursor:pointer;" onclick="document.getElementById(\'edit-member-avatar-input\').click()">' +
@@ -772,13 +737,13 @@
                     '<input id="edit-member-name-input" type="text" value="' + _esc(member.name) + '" maxlength="12" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;box-sizing:border-box;">' +
                 '</div>' +
                 '<div style="width:100%;display:flex;gap:8px;">' +
-                    '<button onclick="document.getElementById(\'edit-member-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;">🔗 图片URL</button>' +
+                    '<button onclick="document.getElementById(\'edit-member-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">🔗 图片URL</button>' +
                     '<input id="edit-member-avatar-url-input" type="text" placeholder="输入图片URL" style="display:none;flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:11px;box-sizing:border-box;">' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-                '<button id="edit-member-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">取消</button>' +
-                '<button id="edit-member-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">保存</button>' +
+                '<button id="edit-member-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+                '<button id="edit-member-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">保存</button>' +
             '</div>';
 
         wrap.appendChild(inner);
@@ -846,14 +811,14 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'add-member-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10058;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10058;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML =
             '<div style="display:flex;justify-content:space-between;margin-bottom:16px;">' +
                 '<span style="font-size:18px;font-weight:700;">➕ 添加成员</span>' +
-                '<button id="add-member-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">✕</button>' +
+                '<button id="add-member-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:16px;">' +
                 '<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px dashed var(--border-color);display:flex;align-items:center;justify-content:center;background:var(--secondary-bg);cursor:pointer;position:relative;" onclick="document.getElementById(\'add-member-avatar-input\').click()">' +
@@ -866,13 +831,13 @@
                     '<input id="add-member-name-input" type="text" placeholder="输入名字" maxlength="12" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;box-sizing:border-box;">' +
                 '</div>' +
                 '<div style="width:100%;display:flex;gap:8px;">' +
-                    '<button onclick="document.getElementById(\'add-member-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;">🔗 图片URL</button>' +
+                    '<button onclick="document.getElementById(\'add-member-avatar-url-input\').style.display=\'block\'" style="flex:1;padding:6px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">🔗 图片URL</button>' +
                     '<input id="add-member-avatar-url-input" type="text" placeholder="输入图片URL" style="display:none;flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:11px;box-sizing:border-box;">' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-                '<button id="add-member-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">取消</button>' +
-                '<button id="add-member-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">保存</button>' +
+                '<button id="add-member-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+                '<button id="add-member-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;">保存</button>' +
             '</div>';
 
         wrap.appendChild(inner);
@@ -956,17 +921,17 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'reply-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10035;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10035;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
             '<span style="font-size:18px;font-weight:700;">💬 回复</span>' +
-            '<button id="reply-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
+            '<button id="reply-close" style="background:none;border:none;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
-            '<textarea id="reply-text" rows="3" placeholder="写下你的回复..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>' +
+            '<textarea id="reply-text" rows="3" placeholder="写下你的回复..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);-webkit-appearance:none;"></textarea>' +
             '<div style="display:flex;gap:10px;margin-top:12px;">' +
-            '<button id="reply-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">取消</button>' +
-            '<button id="reply-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">发送</button>' +
+            '<button id="reply-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+            '<button id="reply-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">发送</button>' +
             '</div>';
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
@@ -1033,7 +998,7 @@
             var time = formatTime(post.timestamp);
             var commentCount = post.comments.length;
 
-            html += '<div class="moments-post" data-id="' + post.id + '" style="background:rgba(var(--secondary-bg-rgb,255,255,255),0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;padding:16px 16px 12px;margin-bottom:14px;border:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
+            html += '<div class="moments-post" data-id="' + post.id + '" style="background:rgba(var(--secondary-bg-rgb,255,255,255),0.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:16px;padding:16px 16px 12px;margin-bottom:14px;border:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
                     '<span style="font-size:20px;display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;">' + avatarHtml + '</span>' +
                     '<span style="font-weight:600;color:var(--text-primary);font-size:15px;">' + _esc(name) + '</span>' +
@@ -1041,13 +1006,13 @@
                 '</div>' +
                 '<div style="font-size:16px;color:var(--text-primary);margin:4px 0 12px;word-wrap:break-word;line-height:1.7;padding-left:2px;">' + _esc(post.text) + '</div>' +
                 '<div style="display:flex;gap:20px;align-items:center;border-top:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);padding-top:10px;">' +
-                    '<button class="moments-like-btn" data-id="' + post.id + '" style="background:none;border:none;color:' + (post.likedByMe ? 'var(--accent-color)' : 'var(--text-secondary)') + ';font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;' + (post.likedByMe ? 'background:rgba(var(--accent-color-rgb),0.08);' : '') + '">' +
+                    '<button class="moments-like-btn" data-id="' + post.id + '" style="background:none;border:none;color:' + (post.likedByMe ? 'var(--accent-color)' : 'var(--text-secondary)') + ';font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;' + (post.likedByMe ? 'background:rgba(var(--accent-color-rgb),0.08);' : '') + '-webkit-tap-highlight-color:transparent;">' +
                         (post.likedByMe ? '❤️' : '🤍') + ' <span>' + post.likes + '</span>' +
                     '</button>' +
-                    '<button class="moments-comment-btn" data-id="' + post.id + '" style="background:none;border:none;color:var(--text-secondary);font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;">' +
+                    '<button class="moments-comment-btn" data-id="' + post.id + '" style="background:none;border:none;color:var(--text-secondary);font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent;">' +
                         '💬 <span>' + commentCount + '</span>' +
                     '</button>' +
-                    (isMe ? '<button class="moments-delete-btn" data-id="' + post.id + '" style="background:none;border:none;color:#ff6b6b;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:12px;margin-left:auto;">🗑️</button>' : '') +
+                    (isMe ? '<button class="moments-delete-btn" data-id="' + post.id + '" style="background:none;border:none;color:#ff6b6b;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:12px;margin-left:auto;-webkit-tap-highlight-color:transparent;">🗑️</button>' : '') +
                 '</div>' +
                 (post.comments.length > 0 ? '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);">' : '');
 
@@ -1062,7 +1027,7 @@
                         '<span style="font-weight:600;font-size:13px;">' + cAvatar + ' ' + _esc(cName) + '</span> ' +
                         '<span style="color:var(--text-primary);font-size:13px;">' + _esc(c.text) + '</span> ' +
                         '<span style="font-size:10px;color:var(--text-secondary);">' + cTime + '</span>' +
-                        '<button class="moments-reply-to-comment" data-postid="' + post.id + '" data-commentid="' + c.id + '" style="background:none;border:none;color:var(--accent-color);font-size:11px;cursor:pointer;padding:0 4px;opacity:0.6;">回复</button>' +
+                        '<button class="moments-reply-to-comment" data-postid="' + post.id + '" data-commentid="' + c.id + '" style="background:none;border:none;color:var(--accent-color);font-size:11px;cursor:pointer;padding:0 4px;opacity:0.6;-webkit-tap-highlight-color:transparent;">回复</button>' +
                     '</div>';
 
                 if (c.reply) {
@@ -1083,58 +1048,46 @@
 
         container.innerHTML = html;
 
-        // ===== 绑定事件 =====
-        var likeBtns = container.querySelectorAll('.moments-like-btn');
-        for (var lb = 0; lb < likeBtns.length; lb++) {
-            (function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var id = this.dataset.id;
-                    _toggleLike(id);
+        // 使用事件委托绑定事件（提高iOS性能）
+        container.querySelectorAll('.moments-like-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var id = this.dataset.id;
+                _toggleLike(id);
+                var activeTab = document.querySelector('.moments-tab.active');
+                if (activeTab) renderTab(activeTab.dataset.tab, container);
+            });
+        });
+
+        container.querySelectorAll('.moments-comment-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var postId = this.dataset.id;
+                showCommentModal(postId);
+            });
+        });
+
+        container.querySelectorAll('.moments-reply-to-comment').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var postId = this.dataset.postid;
+                var commentId = this.dataset.commentid;
+                showReplyModal(postId, commentId);
+            });
+        });
+
+        container.querySelectorAll('.moments-delete-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var id = this.dataset.id;
+                if (confirm('确定要删除这条动态吗？')) {
+                    _deletePost(id);
                     var activeTab = document.querySelector('.moments-tab.active');
                     if (activeTab) renderTab(activeTab.dataset.tab, container);
-                });
-            })(likeBtns[lb]);
-        }
-
-        var commentBtns = container.querySelectorAll('.moments-comment-btn');
-        for (var cb = 0; cb < commentBtns.length; cb++) {
-            (function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var postId = this.dataset.id;
-                    showCommentModal(postId);
-                });
-            })(commentBtns[cb]);
-        }
-
-        var replyBtns = container.querySelectorAll('.moments-reply-to-comment');
-        for (var rb = 0; rb < replyBtns.length; rb++) {
-            (function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var postId = this.dataset.postid;
-                    var commentId = this.dataset.commentid;
-                    showReplyModal(postId, commentId);
-                });
-            })(replyBtns[rb]);
-        }
-
-        var deleteBtns = container.querySelectorAll('.moments-delete-btn');
-        for (var db = 0; db < deleteBtns.length; db++) {
-            (function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var id = this.dataset.id;
-                    if (confirm('确定要删除这条动态吗？')) {
-                        _deletePost(id);
-                        var activeTab = document.querySelector('.moments-tab.active');
-                        if (activeTab) renderTab(activeTab.dataset.tab, container);
-                        _notify('已删除', 'info');
-                    }
-                });
-            })(deleteBtns[db]);
-        }
+                    _notify('已删除', 'info');
+                }
+            });
+        });
     }
 
     // 发布新动态
@@ -1144,17 +1097,17 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'publish-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10020;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10020;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
             '<span style="font-size:18px;font-weight:700;">📝 发布新动态</span>' +
-            '<button id="publish-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
+            '<button id="publish-close" style="background:none;border:none;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
-            '<textarea id="publish-text" rows="4" placeholder="此刻的想法..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>' +
+            '<textarea id="publish-text" rows="4" placeholder="此刻的想法..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);-webkit-appearance:none;"></textarea>' +
             '<div style="display:flex;gap:10px;margin-top:12px;">' +
-            '<button id="publish-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">取消</button>' +
-            '<button id="publish-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">发布</button>' +
+            '<button id="publish-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+            '<button id="publish-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">发布</button>' +
             '</div>';
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
@@ -1183,17 +1136,17 @@
 
         var wrap = document.createElement('div');
         wrap.id = 'comment-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10030;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10030;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(380px, 90vw);border:1px solid var(--border-color);max-height:90vh;overflow-y:auto;';
         inner.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;">' +
             '<span style="font-size:18px;font-weight:700;">💬 评论</span>' +
-            '<button id="comment-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>' +
+            '<button id="comment-close" style="background:none;border:none;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">✕</button>' +
             '</div>' +
-            '<textarea id="comment-text" rows="3" placeholder="写下你的评论..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>' +
+            '<textarea id="comment-text" rows="3" placeholder="写下你的评论..." style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);-webkit-appearance:none;"></textarea>' +
             '<div style="display:flex;gap:10px;margin-top:12px;">' +
-            '<button id="comment-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">取消</button>' +
-            '<button id="comment-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">发送</button>' +
+            '<button id="comment-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;">取消</button>' +
+            '<button id="comment-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">发送</button>' +
             '</div>';
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
@@ -1224,7 +1177,7 @@
             _notify('评论已发送', 'success');
 
             if (post.author === 'partner') {
-                var delay = 3000 + Math.random() * 180000; // 3秒到3分钟
+                var delay = 3000 + Math.random() * 180000;
                 setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = null;
@@ -1257,29 +1210,32 @@
     }
 
     // =============================================
-    // 朋友圈主界面
+    // 朋友圈主界面（iOS兼容修复）
     // =============================================
     window.openMoments = function() {
-        _forceGeneratePartnerPosts();
+        // 防止多次点击打开多个弹窗
+        if (document.getElementById('moments-modal')) {
+            return;
+        }
 
-        var old = document.getElementById('moments-modal');
-        if (old) old.remove();
+        _forceGeneratePartnerPosts();
 
         var wrap = document.createElement('div');
         wrap.id = 'moments-modal';
-        wrap.style.cssText = 'position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
+        // iOS兼容：使用-webkit-前缀
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);';
 
         var inner = document.createElement('div');
         inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:0;width:min(460px, 94vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
-        // ===== 顶部封面区域 =====
+        // 封面区域
         var coverUrl = _getCoverImage();
         var defaultCover = 'linear-gradient(135deg, #2d1b3d 0%, #1a1a2e 50%, #16213e 100%)';
         var coverStyle = coverUrl ? 'url(' + coverUrl + ')' : defaultCover;
 
         var coverSection = document.createElement('div');
         coverSection.id = 'moments-cover';
-        coverSection.style.cssText = 'position:relative;width:100%;height:160px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;transition:background 0.3s ease;';
+        coverSection.style.cssText = 'position:relative;width:100%;height:160px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.3s ease;';
 
         var coverText = document.createElement('div');
         coverText.style.cssText = 'position:absolute;bottom:16px;left:18px;right:18px;color:rgba(255,255,255,0.95);text-shadow:0 2px 16px rgba(0,0,0,0.4);';
@@ -1289,24 +1245,25 @@
         coverSection.appendChild(coverText);
 
         var coverBtnHint = document.createElement('div');
-        coverBtnHint.style.cssText = 'position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);padding:4px 12px;border-radius:14px;font-size:11px;color:rgba(255,255,255,0.85);pointer-events:none;';
+        coverBtnHint.style.cssText = 'position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:4px 12px;border-radius:14px;font-size:11px;color:rgba(255,255,255,0.85);pointer-events:none;';
         coverBtnHint.textContent = '📷 更换封面';
         coverSection.appendChild(coverBtnHint);
 
-        coverSection.addEventListener('click', function() {
+        coverSection.addEventListener('click', function(e) {
+            e.stopPropagation();
             showCoverSettings();
         });
 
         inner.appendChild(coverSection);
 
-        // ===== 标题栏 =====
+        // 标题栏
         var header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 18px 10px;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--primary-bg);';
 
         var leftSection = document.createElement('div');
         leftSection.style.cssText = 'display:flex;align-items:center;gap:8px;';
         var backBtn = document.createElement('button');
-        backBtn.style.cssText = 'background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px;border-radius:8px;display:flex;align-items:center;justify-content:center;';
+        backBtn.style.cssText = 'background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px;border-radius:8px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;';
         backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
         backBtn.onclick = function() { wrap.remove(); };
         leftSection.appendChild(backBtn);
@@ -1320,9 +1277,8 @@
         var rightSection = document.createElement('div');
         rightSection.style.cssText = 'display:flex;gap:6px;align-items:center;';
 
-        // 头像设置按钮
         var avatarBtn = document.createElement('button');
-        avatarBtn.style.cssText = 'background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;';
+        avatarBtn.style.cssText = 'background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;-webkit-tap-highlight-color:transparent;';
         avatarBtn.innerHTML = '<i class="fas fa-user-circle"></i>';
         avatarBtn.title = '头像与昵称';
         avatarBtn.onclick = function(e) {
@@ -1332,7 +1288,7 @@
         rightSection.appendChild(avatarBtn);
 
         var bgBtn = document.createElement('button');
-        bgBtn.style.cssText = 'background:none;border:none;font-size:14px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;';
+        bgBtn.style.cssText = 'background:none;border:none;font-size:14px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;-webkit-tap-highlight-color:transparent;';
         bgBtn.innerHTML = '<i class="fas fa-image"></i>';
         bgBtn.title = '更换封面';
         bgBtn.onclick = function(e) {
@@ -1343,27 +1299,27 @@
         header.appendChild(rightSection);
         inner.appendChild(header);
 
-        // ===== Tab切换 =====
+        // Tab切换
         var tabBar = document.createElement('div');
         tabBar.style.cssText = 'display:flex;border-bottom:1px solid rgba(var(--border-color-rgb,0,0,0),0.08);flex-shrink:0;background:var(--primary-bg);padding:0 16px;';
-        tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:600;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid var(--accent-color);">我的</button>' +
-            '<button class="moments-tab" data-tab="partner" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:400;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid transparent;">群成员</button>';
+        tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:600;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid var(--accent-color);-webkit-tap-highlight-color:transparent;">我的</button>' +
+            '<button class="moments-tab" data-tab="partner" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:400;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid transparent;-webkit-tap-highlight-color:transparent;">群成员</button>';
         inner.appendChild(tabBar);
 
-        // ===== 内容列表 =====
+        // 内容列表
         var contentContainer = document.createElement('div');
         contentContainer.id = 'moments-content';
-        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px 16px;background:var(--secondary-bg);';
+        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px 16px;background:var(--secondary-bg);-webkit-overflow-scrolling:touch;';
 
         renderTab('me', contentContainer);
         inner.appendChild(contentContainer);
 
-        // ===== 底部发布按钮 =====
+        // 底部发布按钮
         var footer = document.createElement('div');
-        footer.style.cssText = 'display:flex;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);backdrop-filter:blur(8px);';
+        footer.style.cssText = 'display:flex;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);';
         var addBtn = document.createElement('button');
         addBtn.id = 'moments-add-btn';
-        addBtn.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#000;color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.2);';
+        addBtn.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#000;color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent;';
         addBtn.textContent = '+';
         addBtn.title = '发布新动态';
         addBtn.onclick = function() { showPublishModal(); };
@@ -1373,7 +1329,14 @@
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        // ===== 事件绑定 =====
+        // 点击外部关闭
+        wrap.addEventListener('click', function(e) {
+            if (e.target === wrap) {
+                wrap.remove();
+            }
+        });
+
+        // Tab切换
         tabBar.querySelectorAll('.moments-tab').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 tabBar.querySelectorAll('.moments-tab').forEach(function(b) {
@@ -1392,6 +1355,11 @@
                 if (addBtnEl) addBtnEl.style.display = tab === 'me' ? 'flex' : 'none';
             });
         });
+
+        // 阻止滚动穿透
+        contentContainer.addEventListener('touchmove', function(e) {
+            e.stopPropagation();
+        }, { passive: true });
     };
 
     // =============================================
@@ -1403,7 +1371,7 @@
     window.editMember = editMember;
     window.addMember = addMember;
     window.removeMember = removeMember;
-    window.partnerPublishPost = partnerPublishPost; // 🔥 暴露外部发布接口
+    window.partnerPublishPost = partnerPublishPost;
 
-    console.log('[朋友圈] 模块已加载（完整版 + 头像与昵称管理 + 手动添加成员）');
+    console.log('[朋友圈] 模块已加载（iOS兼容修复版）');
 })();
