@@ -1526,8 +1526,7 @@
                     return;
                 }
                 // 替换页面中所有 img 的 src (占位图)，但保留用户已手动设置的?
-                // 简单实现：替换所有带有 data-src 或特定标记的图片
-                // 更智能：替换所有 SVG 占位图
+                // 简单实现：替换所有 SVG 占位图
                 const imgs = document.querySelectorAll('img');
                 let count = 0;
                 imgs.forEach(img => {
@@ -1591,6 +1590,5 @@
             console.log('💡 点击任意文字即可编辑，设置面板可全局美化。');
         })();
     </script>
-
 </body>
 </html>
