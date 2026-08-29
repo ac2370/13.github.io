@@ -1,4 +1,4 @@
-// beauty-pages.js - 全局美化页面（双击解锁拖动）
+// beauty-pages.js - 全局美化页面（双击解锁拖动，单击切换页面）
 (function() {
     'use strict';
 
@@ -66,8 +66,8 @@
     var indicatorDragging = false;
     var dragStartX = 0, dragStartY = 0;
     var dragOrigLeft = 0, dragOrigTop = 0;
-    var clickTimer = null;            // 双击计时器
-    var clickCount = 0;               // 点击次数计数
+    var longPressTimer = null;        // 长按定时器
+    var isLongPress = false;
 
     function _getConfig() {
         try {
@@ -254,9 +254,6 @@
         }
     }
 
-    // =============================================
-    // 拖动模式 UI 更新
-    // =============================================
     function updateDragModeUI() {
         var indicator = document.getElementById('beauty-indicator');
         if (!indicator) return;
@@ -264,7 +261,7 @@
             indicator.style.border = '1px solid var(--accent-color, #e0698a)';
             indicator.style.boxShadow = '0 0 20px rgba(var(--accent-color-rgb, 224,105,138), 0.3)';
             indicator.style.cursor = 'grab';
-            indicator.title = '拖动模式：可拖动指示器';
+            indicator.title = '拖动模式：单击切换页面，长按拖动';
         } else {
             indicator.style.border = '1px solid rgba(255,255,255,0.06)';
             indicator.style.boxShadow = 'none';
@@ -274,17 +271,12 @@
     }
 
     // =============================================
-    // 双击检测
+    // 指示器事件处理（单击切换页面，长按拖动）
     // =============================================
     function handleIndicatorClick(e) {
         e.stopPropagation();
-
-        if (isDraggable) {
-            // 拖动模式下，点击不切换页面（由拖动逻辑处理）
-            return;
-        }
-
-        // 锁定模式下，点击切换页面
+        // 如果正在拖动，不处理点击
+        if (indicatorDragging) return;
         var dot = e.target.closest('.beauty-dot');
         if (dot) {
             var idx = parseInt(dot.dataset.index);
@@ -296,14 +288,12 @@
 
     function handleIndicatorDoubleClick(e) {
         e.stopPropagation();
-        // 切换拖动模式
         isDraggable = !isDraggable;
         updateDragModeUI();
         if (isDraggable) {
-            _notify('🔓 已解锁拖动，可自由移动指示器', 'info', 1500);
+            _notify('🔓 已解锁拖动（长按拖动）', 'info', 1500);
         } else {
             _notify('🔒 已锁定指示器', 'info', 1500);
-            // 锁定后保存当前位置
             var indicator = document.getElementById('beauty-indicator');
             if (indicator) {
                 var rect = indicator.getBoundingClientRect();
@@ -335,7 +325,6 @@
         `;
         indicator.title = '双击进入拖动模式';
 
-        // 设置初始位置
         if (config.indicatorPos) {
             indicator.style.left = config.indicatorPos.left + 'px';
             indicator.style.top = config.indicatorPos.top + 'px';
@@ -382,17 +371,21 @@
                 lastClickTime = 0;
             } else {
                 lastClickTime = now;
-                // 延迟执行单击，等待可能的双击
                 setTimeout(function() {
-                    if (Date.now() - lastClickTime < 300) return; // 如果已经有双击就不执行
+                    if (Date.now() - lastClickTime < 300) return;
                     handleIndicatorClick(e);
                 }, 250);
             }
         });
 
-        // ---- 拖动功能（仅在 isDraggable 为 true 时生效） ----
-        function startDrag(e) {
+        // ---- 长按拖动（仅在 isDraggable 为 true 时生效） ----
+        var pressTimer = null;
+        var isPressed = false;
+
+        function startPress(e) {
             if (!isDraggable) return;
+            isPressed = true;
+            indicatorDragging = false;
             var clientX = e.clientX || e.touches[0].clientX;
             var clientY = e.clientY || e.touches[0].clientY;
             var rect = indicator.getBoundingClientRect();
@@ -400,59 +393,73 @@
             dragStartY = clientY - rect.top;
             dragOrigLeft = rect.left;
             dragOrigTop = rect.top;
-            indicatorDragging = false;
-            indicator.style.cursor = 'grabbing';
-            if (e.cancelable) e.preventDefault();
+            // 长按 300ms 后进入拖动模式
+            pressTimer = setTimeout(function() {
+                if (isPressed) {
+                    indicatorDragging = true;
+                    indicator.style.cursor = 'grabbing';
+                    if (e.cancelable) e.preventDefault();
+                }
+            }, 300);
         }
 
-        function onDrag(e) {
-            if (!isDraggable) return;
+        function movePress(e) {
+            if (!isDraggable || !isPressed) return;
             var clientX = e.clientX || e.touches[0].clientX;
             var clientY = e.clientY || e.touches[0].clientY;
-            var newLeft = clientX - dragStartX;
-            var newTop = clientY - dragStartY;
-            var maxX = window.innerWidth - indicator.offsetWidth;
-            var maxY = window.innerHeight - indicator.offsetHeight;
-            newLeft = Math.max(0, Math.min(newLeft, maxX));
-            newTop = Math.max(0, Math.min(newTop, maxY));
-            if (Math.abs(newLeft - dragOrigLeft) > 3 || Math.abs(newTop - dragOrigTop) > 3) {
-                indicatorDragging = true;
+            // 如果已经进入拖动模式，移动指示器
+            if (indicatorDragging) {
+                var newLeft = clientX - dragStartX;
+                var newTop = clientY - dragStartY;
+                var maxX = window.innerWidth - indicator.offsetWidth;
+                var maxY = window.innerHeight - indicator.offsetHeight;
+                newLeft = Math.max(0, Math.min(newLeft, maxX));
+                newTop = Math.max(0, Math.min(newTop, maxY));
+                indicator.style.left = newLeft + 'px';
+                indicator.style.top = newTop + 'px';
+                indicator.style.right = 'auto';
+                indicator.style.bottom = 'auto';
+                indicator.style.transform = 'none';
+                if (e.cancelable) e.preventDefault();
+            } else {
+                // 如果移动距离过大，取消长按（防止长按被误触）
+                var rect = indicator.getBoundingClientRect();
+                var dx = (clientX - dragStartX - rect.left);
+                var dy = (clientY - dragStartY - rect.top);
+                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                    clearTimeout(pressTimer);
+                    isPressed = false;
+                    indicator.style.cursor = 'grab';
+                }
             }
-            indicator.style.left = newLeft + 'px';
-            indicator.style.top = newTop + 'px';
-            indicator.style.right = 'auto';
-            indicator.style.bottom = 'auto';
-            indicator.style.transform = 'none';
-            if (e.cancelable) e.preventDefault();
         }
 
-        function endDrag(e) {
-            if (!isDraggable) {
-                indicator.style.cursor = 'pointer';
-                return;
-            }
-            indicator.style.cursor = 'grab';
+        function endPress(e) {
+            clearTimeout(pressTimer);
             if (indicatorDragging) {
+                // 拖动结束，保存位置
                 var rect = indicator.getBoundingClientRect();
                 saveIndicatorPosition(rect.left, rect.top);
+                indicatorDragging = false;
+                indicator.style.cursor = 'grab';
             }
-            indicatorDragging = false;
+            isPressed = false;
             if (e.cancelable) e.preventDefault();
         }
 
         // 鼠标事件
-        indicator.addEventListener('mousedown', startDrag);
-        document.addEventListener('mousemove', onDrag);
-        document.addEventListener('mouseup', endDrag);
+        indicator.addEventListener('mousedown', startPress);
+        document.addEventListener('mousemove', movePress);
+        document.addEventListener('mouseup', endPress);
 
         // 触摸事件
-        indicator.addEventListener('touchstart', startDrag, { passive: false });
-        document.addEventListener('touchmove', onDrag, { passive: false });
-        document.addEventListener('touchend', endDrag, { passive: false });
+        indicator.addEventListener('touchstart', startPress, { passive: false });
+        document.addEventListener('touchmove', movePress, { passive: false });
+        document.addEventListener('touchend', endPress, { passive: false });
 
         // 阻止在拖动时触发页面滑动
         indicator.addEventListener('touchmove', function(e) {
-            if (isDraggable) e.stopPropagation();
+            if (indicatorDragging) e.stopPropagation();
         }, { passive: false });
 
         if (!config.showIndicator) {
@@ -460,8 +467,6 @@
         }
 
         wrapper.appendChild(indicator);
-
-        // 初始化 UI
         updateDragModeUI();
     }
 
@@ -1105,5 +1110,5 @@
 
     init();
 
-    console.log('[美化页面] 模块已加载（双击解锁拖动）');
+    console.log('[美化页面] 模块已加载（双击解锁，长按拖动）');
 })();
