@@ -2560,6 +2560,453 @@
         console.log('🖼️ 点击任何图片/头像可上传替换');
     })();
 </script>
+    <script src="js/listeners.js"></script>
+    <script src="js/app.js"></script>
 
+    <!-- ===== 右滑个人页交互脚本 ===== -->
+    <script>
+    (function() {
+        'use strict';
+
+        var slideContainer = document.getElementById('slideContainer');
+        var chatPage = document.getElementById('chatPage');
+        var profilePage = document.getElementById('profilePage');
+        var timeBubble = document.getElementById('timeBubble');
+        var timeNumber = document.getElementById('timeNumber');
+
+        var isOpen = false;
+
+        function openProfile() {
+            slideContainer.classList.add('open');
+            isOpen = true;
+        }
+
+        function closeProfile() {
+            slideContainer.classList.remove('open');
+            isOpen = false;
+        }
+
+        // ---- 触摸：向左滑动打开（聊天页） ----
+        var touchStartX = 0, touchStartY = 0, isSwiping = false;
+
+        chatPage.addEventListener('touchstart', function(e) {
+            if (e.target.closest('.profile-page')) return;
+            var t = e.touches[0];
+            touchStartX = t.clientX;
+            touchStartY = t.clientY;
+            isSwiping = true;
+        }, { passive: true });
+
+        chatPage.addEventListener('touchmove', function(e) {
+            if (!isSwiping) return;
+            var t = e.touches[0];
+            var dx = t.clientX - touchStartX;
+            var dy = t.clientY - touchStartY;
+            if (dx < -30 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                openProfile();
+                isSwiping = false;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        chatPage.addEventListener('touchend', function() {
+            isSwiping = false;
+        }, { passive: true });
+
+        // ---- 触摸：向右滑动关闭（个人页） ----
+        var pTouchStartX = 0, pTouchStartY = 0, pIsSwiping = false;
+
+        profilePage.addEventListener('touchstart', function(e) {
+            var t = e.touches[0];
+            pTouchStartX = t.clientX;
+            pTouchStartY = t.clientY;
+            pIsSwiping = true;
+        }, { passive: true });
+
+        profilePage.addEventListener('touchmove', function(e) {
+            if (!pIsSwiping || !isOpen) return;
+            var t = e.touches[0];
+            var dx = t.clientX - pTouchStartX;
+            var dy = t.clientY - pTouchStartY;
+            if (dx > 30 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                closeProfile();
+                pIsSwiping = false;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        profilePage.addEventListener('touchend', function() {
+            pIsSwiping = false;
+        }, { passive: true });
+
+        // ---- 鼠标拖拽（聊天页） ----
+        var mDownX = 0, mDownY = 0, mDragging = false;
+
+        chatPage.addEventListener('mousedown', function(e) {
+            if (e.target.closest('.profile-page')) return;
+            mDownX = e.clientX;
+            mDownY = e.clientY;
+            mDragging = true;
+        });
+
+        chatPage.addEventListener('mousemove', function(e) {
+            if (!mDragging) return;
+            var dx = e.clientX - mDownX;
+            var dy = e.clientY - mDownY;
+            if (dx < -30 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                openProfile();
+                mDragging = false;
+            }
+        });
+
+        chatPage.addEventListener('mouseup', function() {
+            mDragging = false;
+        });
+
+        chatPage.addEventListener('mouseleave', function() {
+            mDragging = false;
+        });
+
+        // ---- 鼠标拖拽（个人页） ----
+        var pMDownX = 0, pMDownY = 0, pMDragging = false;
+
+        profilePage.addEventListener('mousedown', function(e) {
+            if (!isOpen) return;
+            pMDownX = e.clientX;
+            pMDownY = e.clientY;
+            pMDragging = true;
+        });
+
+        profilePage.addEventListener('mousemove', function(e) {
+            if (!pMDragging || !isOpen) return;
+            var dx = e.clientX - pMDownX;
+            var dy = e.clientY - pMDownY;
+            if (dx > 30 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                closeProfile();
+                pMDragging = false;
+            }
+        });
+
+        profilePage.addEventListener('mouseup', function() {
+            pMDragging = false;
+        });
+
+        profilePage.addEventListener('mouseleave', function() {
+            pMDragging = false;
+        });
+
+        // ---- 纪念日时间累计 ----
+        var totalDays = 0;
+
+        try {
+            var saved = localStorage.getItem('profile_total_days');
+            if (saved !== null) {
+                totalDays = parseInt(saved, 10) || 0;
+                if (timeNumber) timeNumber.textContent = totalDays;
+            }
+        } catch (e) {}
+
+        function saveDays() {
+            try {
+                localStorage.setItem('profile_total_days', String(totalDays));
+            } catch (e) {}
+        }
+
+        if (timeBubble) {
+            timeBubble.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var input = prompt('请输入要增加的天数：', '1');
+                if (input === null) return;
+                var days = parseInt(input, 10);
+                if (isNaN(days) || days <= 0) {
+                    alert('请输入有效的正整数');
+                    return;
+                }
+                totalDays += days;
+                if (timeNumber) timeNumber.textContent = totalDays;
+                saveDays();
+                timeBubble.style.transform = 'scale(0.92)';
+                setTimeout(function() {
+                    timeBubble.style.transform = '';
+                }, 150);
+            });
+        }
+
+        if (timeNumber) {
+            timeNumber.addEventListener('dblclick', function() {
+                if (confirm('重置天数为 0 吗？')) {
+                    totalDays = 0;
+                    timeNumber.textContent = '0';
+                    saveDays();
+                }
+            });
+        }
+
+        // ---- 背景切换 ----
+        var bgLayer = document.createElement('div');
+        bgLayer.className = 'bg-layer';
+        bgLayer.id = 'bgLayer';
+        var wrapper = document.querySelector('.slide-container');
+        if (wrapper) wrapper.parentNode.insertBefore(bgLayer, wrapper);
+
+        document.querySelectorAll('.bg-control-btn[data-bg]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var bg = this.dataset.bg;
+                bgLayer.style.background = bg;
+                bgLayer.style.backgroundSize = 'cover';
+                bgLayer.style.backgroundPosition = 'center';
+                bgLayer.classList.remove('has-image');
+            });
+        });
+
+        var bgFileInput = document.getElementById('bgFileInput');
+        if (bgFileInput) {
+            document.getElementById('bgUploadBtn').addEventListener('click', function() {
+                bgFileInput.click();
+            });
+            bgFileInput.addEventListener('change', function() {
+                var file = this.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    bgLayer.style.backgroundImage = 'url(' + e.target.result + ')';
+                    bgLayer.style.backgroundSize = 'cover';
+                    bgLayer.style.backgroundPosition = 'center';
+                    bgLayer.classList.add('has-image');
+                };
+                reader.readAsDataURL(file);
+                this.value = '';
+            });
+        }
+
+        // ---- 播放按钮 ----
+        var playBtn = document.getElementById('playBtn');
+        var isPlaying = false;
+        if (playBtn) {
+            playBtn.addEventListener('click', function() {
+                isPlaying = !isPlaying;
+                this.textContent = isPlaying ? '⏸' : '▶';
+                this.style.transform = 'scale(0.92)';
+                setTimeout(function() {
+                    this.style.transform = '';
+                }.bind(this), 150);
+            });
+        }
+
+        // ---- 更多按钮 ----
+        var postMoreBtn = document.getElementById('postMoreBtn');
+        if (postMoreBtn) {
+            postMoreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                alert('📋 更多菜单\n\n可自定义扩展功能');
+            });
+        }
+
+        // ---- 图片上传 ----
+        var fileInput = document.getElementById('fileInput');
+        var currentTarget = null;
+
+        if (fileInput) {
+            document.querySelectorAll('[data-type="image"], [data-type="avatar"]').forEach(function(el) {
+                el.addEventListener('click', function(e) {
+                    if (e.target.closest('.heart-icon')) return;
+                    e.stopPropagation();
+                    currentTarget = this;
+                    fileInput.click();
+                });
+            });
+
+            var postImageArea = document.getElementById('postImageArea');
+            if (postImageArea) {
+                postImageArea.addEventListener('click', function(e) {
+                    if (e.target.closest('.post-image-center') || e.target.closest('.heart-icon')) return;
+                    currentTarget = document.getElementById('postCenterImage');
+                    fileInput.click();
+                });
+            }
+
+            var heartIcon = document.getElementById('heartIcon');
+            if (heartIcon) {
+                heartIcon.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.style.transform = 'scale(1.3)';
+                    this.style.color = '#ff6b81';
+                    setTimeout(function() {
+                        this.style.transform = '';
+                        this.style.color = '#ff4757';
+                    }.bind(this), 300);
+                    alert('❤️ 已收藏 (演示交互)');
+                });
+            }
+
+            fileInput.addEventListener('change', function() {
+                var file = this.files[0];
+                if (!file || !currentTarget) return;
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var imgData = e.target.result;
+                    currentTarget.innerHTML = '';
+                    var img = document.createElement('img');
+                    img.src = imgData;
+                    img.alt = 'uploaded';
+                    currentTarget.appendChild(img);
+
+                    if (currentTarget.id === 'postCenterImage') {
+                        var heart = document.createElement('span');
+                        heart.className = 'heart-icon';
+                        heart.id = 'heartIcon';
+                        heart.textContent = '♥';
+                        currentTarget.appendChild(heart);
+                        heart.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            this.style.transform = 'scale(1.3)';
+                            this.style.color = '#ff6b81';
+                            setTimeout(function() {
+                                this.style.transform = '';
+                                this.style.color = '#ff4757';
+                            }.bind(this), 300);
+                            alert('❤️ 已收藏 (演示交互)');
+                        });
+                    }
+                };
+                reader.readAsDataURL(file);
+                this.value = '';
+                currentTarget = null;
+            });
+        }
+
+        // ---- 日期选择器 ----
+        var dateModal = document.getElementById('dateModal');
+        var datePicker = document.getElementById('datePicker');
+        var dateConfirm = document.getElementById('dateConfirm');
+        var dateCancel = document.getElementById('dateCancel');
+
+        var anniversaryDate = null;
+
+        try {
+            var savedDate = localStorage.getItem('anniversary_date');
+            if (savedDate) {
+                var d = new Date(savedDate);
+                if (!isNaN(d.getTime())) {
+                    anniversaryDate = d;
+                    updateDaysDisplay();
+                }
+            }
+        } catch (e) {}
+
+        function updateDaysDisplay() {
+            if (!anniversaryDate) {
+                timeNumber.textContent = '0';
+                var label = document.getElementById('anniversaryLabel');
+                if (label) label.textContent = '未设置纪念日';
+                return;
+            }
+            var now = new Date();
+            var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            var start = new Date(anniversaryDate.getFullYear(), anniversaryDate.getMonth(), anniversaryDate.getDate());
+            var diffTime = today.getTime() - start.getTime();
+            var days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            var displayDays = days >= 0 ? days : 0;
+            timeNumber.textContent = displayDays;
+
+            var y = anniversaryDate.getFullYear();
+            var m = String(anniversaryDate.getMonth() + 1).padStart(2, '0');
+            var d = String(anniversaryDate.getDate()).padStart(2, '0');
+            var label = document.getElementById('anniversaryLabel');
+            if (label) label.textContent = '❤️ ' + y + '.' + m + '.' + d + ' 至今';
+
+            try {
+                localStorage.setItem('anniversary_date', anniversaryDate.toISOString());
+            } catch (e) {}
+        }
+
+        if (timeBubble) {
+            timeBubble.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (anniversaryDate) {
+                    var y = anniversaryDate.getFullYear();
+                    var m = String(anniversaryDate.getMonth() + 1).padStart(2, '0');
+                    var d = String(anniversaryDate.getDate()).padStart(2, '0');
+                    datePicker.value = y + '-' + m + '-' + d;
+                } else {
+                    var now = new Date();
+                    datePicker.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                }
+                dateModal.classList.add('active');
+            });
+        }
+
+        if (dateConfirm) {
+            dateConfirm.addEventListener('click', function() {
+                var val = datePicker.value;
+                if (!val) {
+                    alert('请选择一个日期');
+                    return;
+                }
+                var parts = val.split('-');
+                var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                if (isNaN(d.getTime())) {
+                    alert('无效日期');
+                    return;
+                }
+                anniversaryDate = d;
+                updateDaysDisplay();
+                dateModal.classList.remove('active');
+                timeBubble.style.transform = 'scale(0.92)';
+                setTimeout(function() {
+                    timeBubble.style.transform = '';
+                }, 150);
+            });
+        }
+
+        if (dateCancel) {
+            dateCancel.addEventListener('click', function() {
+                dateModal.classList.remove('active');
+            });
+        }
+
+        if (dateModal) {
+            dateModal.addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+        }
+
+        var anniversaryLabelEl = document.getElementById('anniversaryLabel');
+        if (anniversaryLabelEl) {
+            anniversaryLabelEl.addEventListener('click', function() {
+                if (anniversaryDate && confirm('清除纪念日设置？')) {
+                    anniversaryDate = null;
+                    try { localStorage.removeItem('anniversary_date'); } catch(e) {}
+                    updateDaysDisplay();
+                }
+            });
+        }
+
+        // ---- 输入框空值保护 ----
+        document.querySelectorAll('.profile-page input[spellcheck="false"]').forEach(function(input) {
+            var def = input.value;
+            input.setAttribute('data-default', def);
+            input.addEventListener('blur', function() {
+                if (this.value.trim() === '') {
+                    this.value = this.getAttribute('data-default') || '未定义';
+                }
+            });
+        });
+
+        // ---- 暴露控制台 ----
+        window.openProfile = openProfile;
+        window.closeProfile = closeProfile;
+
+        console.log('✅ 右滑个人页已加载（修复版）');
+        console.log('💡 向左滑动聊天界面 → 打开个人页');
+        console.log('💡 向右滑动个人页 → 关闭');
+        console.log('📅 点击 "纪念日" 气泡设置日期');
+        console.log('🖼️ 点击任何图片/头像可上传替换');
+    })();
+    </script>
+
+</body>
+</html>
+    
 </body>
 </html>
