@@ -45,6 +45,108 @@
   <line x1="21" y1="3" x2="3" y2="21" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
 </svg>`;
 
+    // =============================================
+    // 新增：来电通知辅助功能
+    // =============================================
+    function _requestNotificationPermission() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'granted' || Notification.permission === 'denied') return;
+        Notification.requestPermission().then(function(p) {
+            console.log('[来电通知] 通知权限:', p);
+        });
+    }
+
+    function _sendDesktopNotification(title, body, icon) {
+        if (!('Notification' in window)) return false;
+        if (Notification.permission !== 'granted') return false;
+        try {
+            var options = {
+                body: body || '',
+                icon: icon || '',
+                silent: false,
+                vibrate: [200, 100, 200],
+                requireInteraction: true,
+                tag: 'call_notification_' + Date.now()
+            };
+            var notification = new Notification(title, options);
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+            };
+            setTimeout(function() { notification.close(); }, 15000);
+            return true;
+        } catch(e) { return false; }
+    }
+
+    var _ringInterval = null;
+
+    function _playCallRingtone() {
+        try {
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime + 0.2);
+            oscillator.frequency.setValueAtTime(0, audioCtx.currentTime + 0.3);
+            oscillator.frequency.setValueAtTime(0, audioCtx.currentTime + 0.5);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime + 0.6);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime + 0.8);
+            oscillator.frequency.setValueAtTime(0, audioCtx.currentTime + 0.9);
+            oscillator.frequency.setValueAtTime(0, audioCtx.currentTime + 1.1);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime + 1.2);
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime + 1.4);
+            oscillator.frequency.setValueAtTime(0, audioCtx.currentTime + 1.5);
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.6);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 1.6);
+
+            var loopInterval = setInterval(function() {
+                var ov = document.getElementById('call-incoming-overlay');
+                if (!ov || !ov.classList.contains('visible')) {
+                    clearInterval(loopInterval);
+                    _ringInterval = null;
+                    return;
+                }
+                try {
+                    var newOsc = audioCtx.createOscillator();
+                    var newGain = audioCtx.createGain();
+                    newOsc.connect(newGain);
+                    newGain.connect(audioCtx.destination);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.2);
+                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.3);
+                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.5);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.6);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.8);
+                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.9);
+                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 1.1);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 1.2);
+                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 1.4);
+                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 1.5);
+                    newGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    newGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.6);
+                    newOsc.start(audioCtx.currentTime);
+                    newOsc.stop(audioCtx.currentTime + 1.6);
+                } catch(e) {}
+            }, 2000);
+            _ringInterval = loopInterval;
+        } catch(e) { console.warn('[来电通知] 铃声播放失败:', e); }
+    }
+
+    function _stopCallRingtone() {
+        if (_ringInterval) {
+            clearInterval(_ringInterval);
+            _ringInterval = null;
+        }
+    }
+
+    // =============================================
+    // 注入样式 & HTML
+    // =============================================
     function injectCSS() {
         if (document.getElementById('call-feature-style')) return;
         const el = document.createElement('style');
@@ -102,9 +204,7 @@
 }
 .call-inc-btn:hover .call-inc-circle{transform:scale(1.1);}
 .call-inc-btn:active .call-inc-circle{transform:scale(.9);}
-.call-inc-reject .call-inc-circle{background:linear-gradient(135deg,#ff5252,#c62828);box-shadow:0 6px 20px rgba(255,82,82,.45);}
-.call-inc-accept .call-inc-circle{background:linear-gradient(135deg,#4caf50,#2e7d32);box-shadow:0 6px 20px rgba(76,175,80,.45);padding:18px;}
-.call-inc-lbl{font-size:12px;color:rgba(255,255,255,.48);font-weight:500;}
+.call-inc-close .call-inc-circle{background:rgba(255,255,255,.15);box-shadow:0 0 0 1px rgba(255,255,255,.1);}
 
 #call-window{
     position:fixed;z-index:99900;
@@ -116,12 +216,10 @@
     max-width:90vw;max-height:90vh;
 }
 #call-window.visible{display:flex;animation:cWi .4s cubic-bezier(.22,1,.36,1);}
-
 #call-window-inner{
     border-radius:22px;overflow:hidden;
     flex:1;display:flex;flex-direction:column;position:relative;
 }
-
 #call-window-bg{position:absolute;inset:0;z-index:0;}
 .call-bg-grad{position:absolute;inset:0;background:linear-gradient(155deg,#0d1b2a 0%,#1b263b 50%,#415a77 100%);}
 #call-window-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
@@ -133,7 +231,6 @@
     position:absolute;inset:0;z-index:1;transition:opacity .4s;
     background:linear-gradient(to bottom,rgba(0,0,0,.5) 0%,rgba(0,0,0,.04) 35%,rgba(0,0,0,.04) 60%,rgba(0,0,0,.65) 100%);
 }
-
 #call-window-header{
     position:relative;z-index:10;
     display:flex;align-items:center;justify-content:space-between;
@@ -163,7 +260,6 @@
     transition:background .2s,transform .15s;
 }
 .call-top-btn:hover{background:rgba(255,255,255,.22);transform:scale(1.08);}
-
 #call-connecting-state{
     position:relative;z-index:10;
     display:none;flex-direction:column;align-items:center;
@@ -177,7 +273,6 @@
 }
 .call-conn-dots span:nth-child(2){animation-delay:.15s;}
 .call-conn-dots span:nth-child(3){animation-delay:.3s;}
-
 #call-window-body{
     position:relative;z-index:10;
     flex:1;display:flex;flex-direction:column;
@@ -219,7 +314,6 @@
 }
 .call-avatar img{width:100%;height:100%;object-fit:cover;}
 .call-avatar i{font-size:26px;color:rgba(255,255,255,.82);}
-
 .call-name{
     font-size:16px;font-weight:700;color:#fff;
     text-shadow:0 2px 8px rgba(0,0,0,.5);
@@ -233,14 +327,12 @@
 .call-wave span:nth-child(3){height:18px;animation-delay:.2s;}
 .call-wave span:nth-child(4){height:13px;animation-delay:.3s;}
 .call-wave span:nth-child(5){height:6px;animation-delay:.4s;}
-
 #call-connecting-state .call-av-wrap{
     width:68px;height:68px;
 }
 #call-connecting-state .call-avatar{
     width:68px;height:68px;
 }
-
 #call-window-controls{
     position:relative;z-index:10;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
@@ -257,7 +349,6 @@
 }
 .call-hangup-btn:hover{transform:scale(1.1);box-shadow:0 10px 28px rgba(255,82,82,.6);}
 .call-hangup-btn:active{transform:scale(.9);}
-
 .call-util-btn{
     position:absolute;z-index:10;
     width:28px;height:28px;border-radius:50%;border:none;
@@ -271,7 +362,6 @@
 #call-bg-btn{bottom:70px;right:10px;}
 #call-immersive-btn{bottom:70px;left:10px;}
 #call-bg-file-input{display:none;}
-
 #call-window.immersive #call-window-header,
 #call-window.immersive #call-window-body,
 #call-window.immersive #call-connecting-state,
@@ -280,7 +370,6 @@
 #call-window.immersive .call-overlay{opacity:0 !important;pointer-events:none !important;}
 #call-window.immersive #call-immersive-btn{opacity:.35 !important;pointer-events:all !important;}
 #call-window.immersive #call-immersive-btn:hover{opacity:1 !important;}
-
 #call-resize-handle{
     position:absolute;bottom:-2px;right:-2px;z-index:99901;
     width:22px;height:22px;cursor:se-resize;
@@ -293,7 +382,6 @@
     border-bottom:2px solid rgba(255,255,255,.35);
     border-radius:0 0 4px 0;
 }
-
 #call-size-presets{
     position:fixed;z-index:99960;
     display:none;flex-direction:column;gap:2px;
@@ -310,7 +398,6 @@
 }
 .call-size-btn:hover{background:rgba(255,255,255,.1);color:#fff;}
 .call-size-btn i{color:var(--accent-color,#e0698a);width:12px;}
-
 #call-mini-pill{
     position:fixed;bottom:82px;right:16px;z-index:99901;
     display:none;align-items:center;gap:9px;
@@ -340,14 +427,12 @@
     transition:background .2s,transform .15s;flex-shrink:0;
 }
 .call-mini-hangup:hover{background:#ff5252;transform:scale(1.12);}
-
 #call-toolbar-btn{
     background-color:var(--toolbar-btn-bg, var(--message-received-bg)) !important;
     color:var(--toolbar-btn-color, var(--text-secondary)) !important;
 }
 #call-toolbar-btn:hover{color:var(--text-primary) !important;}
 body.bottom-collapse-mode #call-toolbar-btn{display:none !important;}
-
 html[data-theme="dark"][data-color-theme="black-white"]{
     --accent-color: #c0c0c0;
     --accent-color-rgb: 192,192,192;
@@ -358,7 +443,6 @@ html[data-theme="dark"][data-color-theme="black-white"]{
 html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     color: #ffffff !important;
 }
-
 @keyframes cFi{from{opacity:0}to{opacity:1}}
 @keyframes cCu{from{opacity:0;transform:translateY(28px) scale(.94)}to{opacity:1;transform:none}}
 @keyframes cWi{from{opacity:0;transform:scale(.84) translateY(18px)}to{opacity:1;transform:none}}
@@ -384,19 +468,16 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
       <div class="call-inc-avatar" id="call-inc-avatar"><i class="fas fa-user" id="call-inc-av-icon"></i></div>
     </div>
     <div class="call-inc-name" id="call-inc-name">对方</div>
-    <div class="call-inc-sub"><span class="call-inc-sub-dot"></span><span>邀请您进行视频通话</span></div>
+    <div class="call-inc-sub"><span class="call-inc-sub-dot"></span><span>正在呼叫你...</span></div>
     <div class="call-inc-actions">
-      <button class="call-inc-btn call-inc-reject" id="call-inc-reject">
-        <div class="call-inc-circle">${SVG_HU}</div>
-        <span class="call-inc-lbl">拒绝</span>
-      </button>
-      <button class="call-inc-btn call-inc-accept" id="call-inc-accept">
+      <button class="call-inc-btn call-inc-close" id="call-notification-close">
         <div class="call-inc-circle">
           <svg viewBox="0 0 24 24" fill="none" style="display:block;width:100%;height:100%;">
-            <path d="M6.6 10.8c1.4 2.8 3.7 5.1 6.5 6.5l2.2-2.2c.28-.27.68-.36 1.03-.24 1.1.37 2.3.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.56 21 3 13.44 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.28.2 2.5.57 3.57.11.35.03.74-.24 1.02L6.6 10.8z" fill="white"/>
+            <line x1="18" y1="6" x2="6" y2="18" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+            <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
           </svg>
         </div>
-        <span class="call-inc-lbl">接听</span>
+        <span class="call-inc-lbl">关闭</span>
       </button>
     </div>
   </div>
@@ -659,39 +740,68 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             showNotification('通话已挂断', 'info', 2000);
     }
 
+    // =============================================
+    // 修改：来电通知（简约卡片 + 桌面通知 + 声音）
+    // =============================================
     function showIncomingCall() {
         if (!S.enabled || S.active) return;
-        const ov = document.getElementById('call-incoming-overlay');
+        var ov = document.getElementById('call-incoming-overlay');
         if (!ov) return;
-        fillAv('call-inc-avatar'); fillNm('call-inc-name');
+
+        var callerName = getName();
+        var callerAvatar = getAvSrc();
+
+        var nameEl = document.getElementById('call-inc-name');
+        if (nameEl) nameEl.textContent = callerName;
+
+        var avatarEl = document.getElementById('call-inc-avatar');
+        if (avatarEl) {
+            if (callerAvatar) {
+                avatarEl.innerHTML = '<img src="' + callerAvatar + '" style="width:100%;height:100%;object-fit:cover;">';
+            } else {
+                avatarEl.innerHTML = '<i class="fas fa-user"></i>';
+            }
+        }
+
+        // 修改副标题
+        var subEl = document.querySelector('.call-inc-sub span:last-child');
+        if (subEl) subEl.textContent = '正在呼叫你...';
+
+        // 关闭按钮事件
+        var closeBtn = document.getElementById('call-notification-close');
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                ov.classList.remove('visible');
+                clearTimeout(S.incomingTimer);
+                _stopCallRingtone();
+            };
+        }
+
+        // 播放铃声（如果页面在后台）
+        if (document.hidden) {
+            _playCallRingtone();
+        }
+
+        // 发送桌面通知
+        var notifSent = _sendDesktopNotification(
+            '📞 ' + callerName + ' 来电话了',
+            '正在呼叫你...',
+            callerAvatar || ''
+        );
+
+        // 如果页面在后台且没有发送通知，尝试振动
+        if (document.hidden && !notifSent && navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+
         ov.classList.add('visible');
         clearTimeout(S.incomingTimer);
 
-        const autoRejectChance = 0.30;
-        if (Math.random() < autoRejectChance) {
-            const rejectDelay = 4000 + Math.random() * 6000;
-            S.incomingTimer = setTimeout(() => {
-                if (!ov.classList.contains('visible')) return;
-                ov.classList.remove('visible');
-                const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
-                const partnerName = getName();
-                const rejectLabels = [
-                    `${partnerName} 的来电，${myName}未接听`,
-                    `${myName}拒绝了 ${partnerName} 的通话`,
-                    `错过了 ${partnerName} 的来电`,
-                    `${myName}暂时无法接听 ${partnerName} 的通话`,
-                ];
-                const label = rejectLabels[Math.floor(Math.random() * rejectLabels.length)];
-                sendCallEvent('fa-phone-slash', label, null);
-            }, rejectDelay);
-        } else {
-            S.incomingTimer = setTimeout(() => {
-                if (!ov.classList.contains('visible')) return;
-                ov.classList.remove('visible');
-                const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
-                sendCallEvent('fa-phone-slash', `${myName}未接听 ${getName()} 的来电`, null);
-            }, 22000);
-        }
+        // 30秒后自动关闭
+        S.incomingTimer = setTimeout(function() {
+            ov.classList.remove('visible');
+            _stopCallRingtone();
+        }, 30000);
     }
 
     function scheduleRandomCall() {
@@ -827,16 +937,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     function bindEvents() {
-        document.getElementById('call-inc-reject')?.addEventListener('click', () => {
-            document.getElementById('call-incoming-overlay')?.classList.remove('visible');
-            clearTimeout(S.incomingTimer);
-            const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
-            sendCallEvent('fa-phone-slash', `${myName}拒绝了 ${getName()} 的通话`, null);
-        });
-        document.getElementById('call-inc-accept')?.addEventListener('click', () => {
-            document.getElementById('call-incoming-overlay')?.classList.remove('visible');
-            clearTimeout(S.incomingTimer); startCall(true);
-        });
+        // 通知关闭按钮已在 showIncomingCall 中绑定
 
         document.getElementById('call-hangup-btn')?.addEventListener('click', endCall);
         document.getElementById('call-mini-hangup')?.addEventListener('click', e => { e.stopPropagation(); endCall(); });
@@ -899,6 +1000,11 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         injectHTML();
         bindEvents();
         loadBg();
+
+        // 请求通知权限
+        setTimeout(function() {
+            _requestNotificationPermission();
+        }, 2000);
 
         const late = () => {
             injectToolbarBtn();
