@@ -1,4 +1,4 @@
-// beauty-pages.js - 全局美化页面（指示器下置，排版如图2）
+// beauty-pages.js - 全局美化页面（指示器在红圈位置）
 (function() {
     'use strict';
 
@@ -6,6 +6,7 @@
     var PAGE_COUNT = 3;
 
     var DEFAULT_CONFIG = {
+        showIndicator: true,
         pages: [
             { type: 'chat', label: '聊天' },
             {
@@ -13,8 +14,8 @@
                 label: '阿晏&小回',
                 bgImage: '',
                 avatar: '',
-                title: '',    // 标题改为空，不显示
-                subtitle: '', // 副标题改为空
+                title: '',
+                subtitle: '',
                 tags: [
                     { key: '昵称', value: '小回' },
                     { key: '副文', value: '星河入梦' },
@@ -28,7 +29,7 @@
                 subtitleColor: 'rgba(255,255,255,0.7)',
                 subtitleSize: 14,
                 tagColor: 'rgba(255,255,255,0.85)',
-                tagSize: 16   // 标签字体放大
+                tagSize: 16
             },
             {
                 type: 'beauty',
@@ -64,6 +65,7 @@
             var saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 var parsed = JSON.parse(saved);
+                if (parsed.showIndicator === undefined) parsed.showIndicator = true;
                 for (var i = 0; i < DEFAULT_CONFIG.pages.length; i++) {
                     if (!parsed.pages[i]) parsed.pages[i] = DEFAULT_CONFIG.pages[i];
                     for (var key in DEFAULT_CONFIG.pages[i]) {
@@ -98,7 +100,6 @@
         }
     }
 
-    // 更新美化页面（只显示标签列表，移除头像和标题）
     function updateBeautyPage(index) {
         var pageData = config.pages[index];
         if (!pageData || pageData.type !== 'beauty') return;
@@ -106,7 +107,6 @@
         var pageEl = document.querySelector('.beauty-page-' + index);
         if (!pageEl) return;
 
-        // 背景
         var bgLayer = pageEl.querySelector('.beauty-bg-layer');
         if (bgLayer) {
             if (pageData.bgImage) {
@@ -118,12 +118,10 @@
             }
         }
 
-        // 标签列表（只保留标签，无头像标题）
         var tagContainer = pageEl.querySelector('.beauty-tags');
         if (tagContainer) {
             tagContainer.innerHTML = '';
             var tags = pageData.tags || [];
-            // 如果标签为空，显示占位提示
             if (tags.length === 0) {
                 var empty = document.createElement('div');
                 empty.style.cssText = 'text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:14px;';
@@ -168,6 +166,7 @@
                 updateBeautyPage(i);
             }
         }
+        updateIndicatorVisibility();
     }
 
     function goToPage(index, animate) {
@@ -214,7 +213,13 @@
         });
     }
 
-    // 创建美化页面（卡片只含标签列表）
+    function updateIndicatorVisibility() {
+        var indicator = document.getElementById('beauty-indicator');
+        if (indicator) {
+            indicator.style.display = config.showIndicator ? 'flex' : 'none';
+        }
+    }
+
     function createBeautyPage(index) {
         var page = document.createElement('div');
         page.className = 'beauty-page beauty-page-' + index;
@@ -232,7 +237,6 @@
             box-sizing: border-box;
         `;
 
-        // 背景层（点击打开设置）
         var bgLayer = document.createElement('div');
         bgLayer.className = 'beauty-bg-layer';
         bgLayer.style.cssText = `
@@ -252,7 +256,6 @@
         });
         page.appendChild(bgLayer);
 
-        // 卡片（透明背景，仅标签列表）
         var card = document.createElement('div');
         card.className = 'beauty-card';
         card.style.cssText = `
@@ -269,7 +272,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         `;
 
-        // 标签列表容器
         var tagContainer = document.createElement('div');
         tagContainer.className = 'beauty-tags';
         tagContainer.style.cssText = `
@@ -285,7 +287,6 @@
         return page;
     }
 
-    // 初始化滑动页面
     function initBeautyPages() {
         config = _getConfig();
 
@@ -354,19 +355,21 @@
         console.log('[美化页面] 已初始化');
     }
 
-    // 指示器：下置到输入框上方（bottom: 56px 贴近输入栏）
+    // =============================================
+    // 指示器：位置在红圈处（bottom: 130px）
+    // =============================================
     function addIndicator(wrapper) {
         var indicator = document.createElement('div');
         indicator.id = 'beauty-indicator';
         indicator.style.cssText = `
             position: absolute;
-            bottom: 56px;
+            bottom: 130px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 8px;
             z-index: 100;
-            background: rgba(0,0,0,0.25);
+            background: rgba(0,0,0,0.2);
             backdrop-filter: blur(6px);
             padding: 4px 12px;
             border-radius: 16px;
@@ -467,7 +470,9 @@
         });
     }
 
-    // 顶部栏布局修正（保持不变）
+    // =============================================
+    // 顶部栏布局修正
+    // =============================================
     function modifyHeaderLayout() {
         var headerInner = document.querySelector('.header-inner');
         if (!headerInner) {
@@ -543,7 +548,7 @@
     }
 
     // =============================================
-    // 设置面板（保持不变）
+    // 设置面板
     // =============================================
     function openBeautySettings(pageIndex) {
         var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
@@ -692,7 +697,6 @@
     }
 
     function bindSettingsEvents() {
-        // 背景图
         document.querySelectorAll('.beauty-bg-upload').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -754,7 +758,6 @@
             };
         });
 
-        // 标签
         document.querySelectorAll('.beauty-tag-add').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -895,5 +898,5 @@
 
     init();
 
-    console.log('[美化页面] 模块已加载（排版如图2，指示器下置）');
+    console.log('[美化页面] 模块已加载（指示器在红圈位置）');
 })();
