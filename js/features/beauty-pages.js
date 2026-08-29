@@ -1,16 +1,16 @@
-// beauty-pages.js – 自动生成三页滑动界面 + 全局美化面板
+// beauty-pages.js – 纯 JavaScript 模块，动态生成三页滑动界面 + 全局美化面板
 (function() {
     'use strict';
 
-    // ----- 样式（原 HTML 中的 <style> 全部内容） -----
+    // ----- 样式（所有 CSS 都包含在此） -----
     const styles = `
         /* ===== 全局重置 & 基础 ===== */
-        * {
+        #beauty-pages-app * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        :root {
+        #beauty-pages-app {
             --bg: #f5efe9;
             --card-bg: rgba(255, 248, 242, 0.85);
             --text: #3d2c2a;
@@ -20,8 +20,6 @@
             --radius: 28px;
             --font: 'PingFang SC', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
             --transition: 0.45s cubic-bezier(0.22, 0.68, 0, 1);
-        }
-        #beauty-pages-app {
             width: 100%;
             height: 100vh;
             overflow: hidden;
@@ -30,7 +28,11 @@
             color: var(--text);
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 99999;
+            pointer-events: auto;
         }
         #beauty-pages-app .slider {
             display: flex;
@@ -64,7 +66,6 @@
             background: #d4a5a5;
             border-radius: 10px;
         }
-        /* ===== 页面通用卡片 ===== */
         #beauty-pages-app .card {
             background: var(--card-bg);
             backdrop-filter: blur(8px);
@@ -83,7 +84,6 @@
             margin-bottom: 10px;
             opacity: 0.7;
         }
-        /* ===== 页面1: 聊天页 ===== */
         #beauty-pages-app .chat-header {
             display: flex;
             align-items: center;
@@ -206,7 +206,6 @@
             padding: 8px 0 2px;
             letter-spacing: 1px;
         }
-        /* ===== 页面2: 阿晏&小回 ===== */
         #beauty-pages-app .p2-top {
             display: flex;
             align-items: center;
@@ -501,18 +500,6 @@
             object-fit: cover;
             border-radius: 2px;
         }
-        #beauty-pages-app .p2-polaroids .pol .empty-hint {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-light);
-            opacity: 0.25;
-            font-size: 10px;
-            background: #f5efe9;
-        }
-        /* ===== 页面3: 阿晏&66 ===== */
         #beauty-pages-app .p3-banner {
             position: relative;
             width: 100%;
@@ -773,7 +760,7 @@
             user-select: none;
             line-height: 1.6;
         }
-        /* ===== 设置面板 ===== */
+        /* 设置面板 */
         #beauty-pages-app #settings-toggle {
             position: fixed;
             bottom: 28px;
@@ -921,7 +908,6 @@
             background: #d4a5a5;
             border-radius: 10px;
         }
-        /* ===== 响应式微调 ===== */
         @media (max-width: 480px) {
             #beauty-pages-app .page {
                 padding: 0 10px 16px;
@@ -978,33 +964,9 @@
                 font-size: 10px;
             }
         }
-        /* 工具类 */
-        #beauty-pages-app .flex-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #beauty-pages-app .gap-2 {
-            gap: 6px;
-        }
-        #beauty-pages-app .mt-1 {
-            margin-top: 6px;
-        }
-        #beauty-pages-app .mb-1 {
-            margin-bottom: 6px;
-        }
-        #beauty-pages-app .op-4 {
-            opacity: 0.4;
-        }
-        #beauty-pages-app .text-sm {
-            font-size: 12px;
-        }
-        #beauty-pages-app .text-xs {
-            font-size: 10px;
-        }
     `;
 
-    // ----- HTML 结构（原 <body> 中的内容，不含 <script>） -----
+    // ----- HTML 结构（所有页面内容） -----
     const html = `
         <!-- 设置面板 -->
         <button id="settings-toggle" aria-label="全局设置">⚙</button>
@@ -1235,7 +1197,7 @@
         </div>
     `;
 
-    // ----- 核心初始化函数（包含所有 JS 逻辑） -----
+    // ----- 初始化函数（包含所有 JS 逻辑） -----
     function initBeautyPages() {
         // 创建容器
         const app = document.createElement('div');
@@ -1248,8 +1210,8 @@
         styleEl.textContent = styles;
         document.head.appendChild(styleEl);
 
-        // ---- 以下是原 <script> 中的所有逻辑，已适配新容器 ----
-        const container = app; // 所有查询基于 app 内部
+        // ---- 以下为原 <script> 逻辑，已适配新容器 ----
+        const container = app;
 
         // DOM 引用（在 app 内查找）
         const slider = container.querySelector('#slider');
