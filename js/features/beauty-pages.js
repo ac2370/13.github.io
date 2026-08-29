@@ -1,11 +1,10 @@
-// beauty-pages.js - 全局美化页面（左右滑动切换，增强版布局）
+// beauty-pages.js - 全局美化页面（点击自定义 + 设置联动）
 (function() {
     'use strict';
 
     var STORAGE_KEY = 'beauty_pages_config';
     var PAGE_COUNT = 3;
 
-    // 默认配置（包含更多内容块）
     var DEFAULT_CONFIG = {
         pages: [
             { type: 'chat', label: '聊天' },
@@ -13,11 +12,9 @@
                 type: 'beauty',
                 label: '阿晏&小回',
                 bgImage: '',
-                // 头部信息
                 avatar: '',
                 title: '阿晏 & 小回',
                 subtitle: '✨ 星河入梦，你是人间理想 ✨',
-                // 标签列表
                 tags: [
                     { key: '昵称', value: '小回' },
                     { key: '副文', value: '星河入梦' },
@@ -102,7 +99,7 @@
     }
 
     // =============================================
-    // 更新美化页面（包含所有内容块）
+    // 更新美化页面内容
     // =============================================
     function updateBeautyPage(index) {
         var pageData = config.pages[index];
@@ -151,7 +148,7 @@
             }
         }
 
-        // 标签列表
+        // 标签
         var tagContainer = pageEl.querySelector('.beauty-tags');
         if (tagContainer) {
             tagContainer.innerHTML = '';
@@ -162,15 +159,22 @@
                 row.style.cssText = `
                     display: flex;
                     justify-content: space-between;
-                    padding: 6px 0;
+                    padding: 8px 0;
                     border-bottom: 1px solid rgba(255,255,255,0.06);
                     font-size: ${pageData.tagSize || 14}px;
                     color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
+                    cursor: pointer;
+                    transition: background 0.2s;
                 `;
                 row.innerHTML = `
                     <span style="opacity:0.6;font-weight:300;">${_esc(tag.key)}</span>
                     <span style="font-weight:400;">${_esc(tag.value)}</span>
                 `;
+                // 点击标签打开设置
+                row.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    openBeautySettings(index);
+                });
                 tagContainer.appendChild(row);
             });
         }
@@ -232,7 +236,7 @@
     }
 
     // =============================================
-    // 创建美化页面（增强版布局）
+    // 创建美化页面（含点击自定义事件）
     // =============================================
     function createBeautyPage(index) {
         var pageData = config.pages[index];
@@ -252,7 +256,7 @@
             box-sizing: border-box;
         `;
 
-        // 背景层
+        // 背景层（点击打开设置）
         var bgLayer = document.createElement('div');
         bgLayer.className = 'beauty-bg-layer';
         bgLayer.style.cssText = `
@@ -264,10 +268,15 @@
             z-index: 0;
             transition: opacity 0.5s ease;
             opacity: 0;
+            cursor: pointer;
         `;
+        bgLayer.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
         page.appendChild(bgLayer);
 
-        // 内容卡片
+        // 卡片
         var card = document.createElement('div');
         card.className = 'beauty-card';
         card.style.cssText = `
@@ -284,10 +293,10 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         `;
 
-        // 头像
+        // 头像（点击打开设置）
         var avatarWrap = document.createElement('div');
         avatarWrap.className = 'beauty-avatar-wrap';
-        avatarWrap.style.cssText = 'text-align:center;margin-bottom:12px;';
+        avatarWrap.style.cssText = 'text-align:center;margin-bottom:12px;cursor:pointer;';
         var avatarImg = document.createElement('img');
         avatarImg.className = 'beauty-avatar-img';
         avatarImg.style.cssText = `
@@ -299,10 +308,14 @@
             display: none;
             margin: 0 auto;
         `;
+        avatarImg.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
         avatarWrap.appendChild(avatarImg);
         card.appendChild(avatarWrap);
 
-        // 标题
+        // 标题（点击打开设置）
         var title = document.createElement('div');
         title.className = 'beauty-title';
         title.style.cssText = `
@@ -314,10 +327,15 @@
             margin-bottom: 4px;
             letter-spacing: 1px;
             transition: all 0.3s ease;
+            cursor: pointer;
         `;
+        title.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
         card.appendChild(title);
 
-        // 副标题
+        // 副标题（点击打开设置）
         var subtitle = document.createElement('div');
         subtitle.className = 'beauty-subtitle';
         subtitle.style.cssText = `
@@ -329,7 +347,12 @@
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
             line-height: 1.5;
+            cursor: pointer;
         `;
+        subtitle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
         card.appendChild(subtitle);
 
         // 标签列表容器
@@ -343,8 +366,6 @@
         card.appendChild(tagContainer);
 
         page.appendChild(card);
-
-        // 更新内容
         updateBeautyPage(index);
 
         return page;
@@ -385,7 +406,6 @@
             will-change: transform;
         `;
 
-        // 页面0：聊天
         var chatPage = document.createElement('div');
         chatPage.className = 'beauty-page beauty-page-chat';
         chatPage.style.cssText = `
@@ -399,11 +419,9 @@
         }
         track.appendChild(chatPage);
 
-        // 页面1：美化页1
         var beautyPage1 = createBeautyPage(1);
         track.appendChild(beautyPage1);
 
-        // 页面2：美化页2
         var beautyPage2 = createBeautyPage(2);
         track.appendChild(beautyPage2);
 
@@ -432,7 +450,7 @@
         indicator.id = 'beauty-indicator';
         indicator.style.cssText = `
             position: absolute;
-            bottom: 20px;
+            bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -474,9 +492,6 @@
         wrapper.appendChild(indicator);
     }
 
-    // =============================================
-    // 触摸事件
-    // =============================================
     function bindTouchEvents(wrapper, track) {
         var startX = 0, startIndex = 0, isDragging = false;
 
@@ -511,7 +526,6 @@
             goToPage(newIndex, true);
         }, { passive: true });
 
-        // 鼠标支持
         var mouseDown = false, mouseStartX = 0, mouseStartIndex = 0;
         wrapper.addEventListener('mousedown', function(e) {
             if (isAnimating) return;
@@ -544,9 +558,90 @@
     }
 
     // =============================================
-    // 设置面板（增强版）
+    // 顶部栏布局修正
     // =============================================
-    function openBeautySettings() {
+    function modifyHeaderLayout() {
+        var headerInner = document.querySelector('.header-inner');
+        if (!headerInner) {
+            setTimeout(modifyHeaderLayout, 500);
+            return;
+        }
+
+        if (headerInner.dataset.beautyModified === 'true') return;
+        headerInner.dataset.beautyModified = 'true';
+
+        var userInfos = headerInner.querySelectorAll('.user-info');
+        if (userInfos.length < 2) return;
+
+        var leftUser = userInfos[0];
+        var rightUser = userInfos[1];
+
+        function restructureUser(userEl, isLeft) {
+            var nameEl = userEl.querySelector('.username');
+            var avatarContainer = userEl.querySelector('.avatar-container');
+            var statusEl = userEl.querySelector('.status');
+
+            if (!nameEl || !avatarContainer || !statusEl) return;
+
+            var nameText = nameEl.textContent || '';
+            var statusText = statusEl.querySelector('span') ? statusEl.querySelector('span').textContent : '在线';
+            var avatarHTML = avatarContainer.innerHTML;
+
+            userEl.innerHTML = '';
+            userEl.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
+
+            var avatarWrap = document.createElement('div');
+            avatarWrap.style.cssText = 'width:32px;height:32px;flex-shrink:0;border-radius:50%;overflow:hidden;background:rgba(var(--accent-color-rgb,224,105,138),0.15);display:flex;align-items:center;justify-content:center;';
+            avatarWrap.innerHTML = avatarHTML;
+            var img = avatarWrap.querySelector('img');
+            if (img) {
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            } else {
+                var icon = avatarWrap.querySelector('i');
+                if (icon) {
+                    icon.style.cssText = 'font-size:16px;color:var(--text-secondary);';
+                } else {
+                    avatarWrap.innerHTML = '<i class="fas fa-user" style="font-size:16px;color:var(--text-secondary);"></i>';
+                }
+            }
+            userEl.appendChild(avatarWrap);
+
+            var infoWrap = document.createElement('div');
+            infoWrap.style.cssText = 'display:flex;flex-direction:column;line-height:1.2;';
+
+            var nameClone = document.createElement('div');
+            nameClone.className = 'username';
+            nameClone.style.cssText = 'font-size:14px;font-weight:600;color:var(--text-primary);';
+            nameClone.textContent = nameText;
+            infoWrap.appendChild(nameClone);
+
+            var statusClone = document.createElement('div');
+            statusClone.className = 'status';
+            statusClone.style.cssText = 'font-size:10px;color:var(--text-secondary);opacity:0.7;';
+            statusClone.textContent = statusText;
+            infoWrap.appendChild(statusClone);
+
+            userEl.appendChild(infoWrap);
+
+            if (!isLeft) {
+                userEl.style.marginLeft = 'auto';
+            }
+        }
+
+        restructureUser(leftUser, true);
+        restructureUser(rightUser, false);
+
+        headerInner.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 12px;';
+    }
+
+    // =============================================
+    // 设置面板（接受页面索引参数）
+    // =============================================
+    function openBeautySettings(pageIndex) {
+        var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
+        // 确保是美化页（1或2），如果是聊天页则默认为1
+        if (currentPage === 0) currentPage = 1;
+
         var old = document.getElementById('beauty-settings-modal');
         if (old) old.remove();
 
@@ -570,7 +665,6 @@
             box-shadow: 0 24px 64px rgba(0,0,0,0.3);
         `;
 
-        // 标题
         var header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
         header.innerHTML = `
@@ -579,7 +673,7 @@
         `;
         inner.appendChild(header);
 
-        // 页面切换按钮
+        // 页面切换按钮（高亮当前页面）
         var pageSelect = document.createElement('div');
         pageSelect.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;';
         var pageOptions = ['💬 聊天', '🌸 阿晏&小回', '🌙 阿晏&66'];
@@ -587,20 +681,26 @@
             var btn = document.createElement('button');
             btn.textContent = pageOptions[i];
             btn.style.cssText = `
-                flex:1; padding:8px 4px; border:2px solid ${config.currentIndex === i ? 'var(--accent-color)' : 'var(--border-color)'};
-                border-radius:10px; background:${config.currentIndex === i ? 'rgba(var(--accent-color-rgb),0.1)' : 'var(--secondary-bg)'};
-                color:${config.currentIndex === i ? 'var(--accent-color)' : 'var(--text-secondary)'};
-                font-size:11px; font-weight:${config.currentIndex === i ? '700' : '400'};
+                flex:1; padding:8px 4px; border:2px solid ${i === currentPage ? 'var(--accent-color)' : 'var(--border-color)'};
+                border-radius:10px; background:${i === currentPage ? 'rgba(var(--accent-color-rgb),0.1)' : 'var(--secondary-bg)'};
+                color:${i === currentPage ? 'var(--accent-color)' : 'var(--text-secondary)'};
+                font-size:11px; font-weight:${i === currentPage ? '700' : '400'};
                 cursor:pointer; font-family:var(--font-family);
             `;
             btn.onclick = (function(idx) {
-                return function() { goToPage(idx, true); };
+                return function() {
+                    goToPage(idx, true);
+                    // 重新打开设置并传递新页面
+                    var modal = document.getElementById('beauty-settings-modal');
+                    if (modal) modal.remove();
+                    openBeautySettings(idx);
+                };
             })(i);
             pageSelect.appendChild(btn);
         }
         inner.appendChild(pageSelect);
 
-        // 设置表单（只显示当前页面的设置）
+        // 生成设置表单（只显示当前页面的设置）
         for (var pi = 1; pi < PAGE_COUNT; pi++) {
             var pageData = config.pages[pi];
             if (pageData.type !== 'beauty') continue;
@@ -610,10 +710,9 @@
             section.style.cssText = `
                 padding: 12px 0;
                 border-bottom: 1px solid rgba(var(--border-color-rgb),0.1);
-                ${config.currentIndex !== pi ? 'display:none;' : ''}
+                ${pi !== currentPage ? 'display:none;' : ''}
             `;
 
-            // 构建标签编辑HTML
             var tagsHtml = '';
             var tags = pageData.tags || [];
             tags.forEach(function(tag, idx) {
@@ -710,7 +809,6 @@
             inner.appendChild(section);
         }
 
-        // 保存按钮
         var saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 保存所有设置';
         saveBtn.style.cssText = `
@@ -739,7 +837,7 @@
     // 绑定设置事件
     // =============================================
     function bindSettingsEvents() {
-        // --- 背景图 ---
+        // 背景图
         document.querySelectorAll('.beauty-bg-upload').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -801,7 +899,7 @@
             };
         });
 
-        // --- 头像 ---
+        // 头像
         document.querySelectorAll('.beauty-avatar-upload').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -863,7 +961,7 @@
             };
         });
 
-        // --- 标题 ---
+        // 标题/副标题
         document.querySelectorAll('.beauty-title-input').forEach(function(input) {
             input.onchange = function() {
                 var page = parseInt(this.dataset.page);
@@ -881,7 +979,7 @@
             };
         });
 
-        // --- 颜色/大小 ---
+        // 颜色/大小
         document.querySelectorAll('.beauty-color-input').forEach(function(input) {
             input.onchange = function() {
                 var page = parseInt(this.dataset.page);
@@ -904,7 +1002,7 @@
             };
         });
 
-        // --- 标签管理 ---
+        // 标签
         document.querySelectorAll('.beauty-tag-add').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -912,36 +1010,27 @@
                 tags.push({ key: '新标签', value: '内容' });
                 config.pages[page].tags = tags;
                 _saveConfig();
-                // 重新渲染该页面的设置
-                var section = document.getElementById('beauty-settings-section-' + page);
-                if (section) {
-                    // 重建标签部分（简单方法：重新生成整个section）
-                    // 但我们只刷新标签列表
-                    var container = document.getElementById('beauty-tags-container-' + page);
-                    if (container) {
-                        // 清空并重新构建
-                        var newHtml = '';
-                        tags.forEach(function(tag, idx) {
-                            newHtml += `
-                                <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                                    <input class="beauty-tag-key" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                    <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                    <button class="beauty-tag-remove" data-page="${page}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
-                                </div>
-                            `;
-                        });
-                        container.innerHTML = newHtml;
-                        // 重新绑定事件
-                        bindTagEvents();
-                    }
-                    updateBeautyPage(page);
-                    _notify('标签已添加', 'success', 1000);
+                var container = document.getElementById('beauty-tags-container-' + page);
+                if (container) {
+                    var newHtml = '';
+                    tags.forEach(function(tag, idx) {
+                        newHtml += `
+                            <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                                <input class="beauty-tag-key" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                <button class="beauty-tag-remove" data-page="${page}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = newHtml;
+                    bindTagEvents();
                 }
+                updateBeautyPage(page);
+                _notify('标签已添加', 'success', 1000);
             };
         });
 
         function bindTagEvents() {
-            // 标签key/value修改
             document.querySelectorAll('.beauty-tag-key').forEach(function(input) {
                 input.onchange = function() {
                     var page = parseInt(this.dataset.page);
@@ -966,7 +1055,6 @@
                     }
                 };
             });
-            // 标签删除
             document.querySelectorAll('.beauty-tag-remove').forEach(function(btn) {
                 btn.onclick = function() {
                     var page = parseInt(this.dataset.page);
@@ -976,7 +1064,6 @@
                         tags.splice(idx, 1);
                         config.pages[page].tags = tags;
                         _saveConfig();
-                        // 重新渲染该页面的标签列表
                         var container = document.getElementById('beauty-tags-container-' + page);
                         if (container) {
                             var newHtml = '';
@@ -1004,67 +1091,6 @@
     function saveAllSettings() {
         _saveConfig();
         refreshAllPages();
-    }
-
-    // =============================================
-    // 顶部栏修改（红圈位置改成红圈所示布局）
-    // =============================================
-    function modifyHeaderLayout() {
-        // 将头部改为红圈所示样式：头像和名字更紧凑，在线状态放在名字下方或旁边
-        var header = document.querySelector('.header-inner');
-        if (!header) return;
-
-        // 检查是否已经修改过
-        if (header.dataset.beautyModified) return;
-        header.dataset.beautyModified = 'true';
-
-        // 获取现有的 user-info 元素
-        var userInfos = header.querySelectorAll('.user-info');
-        if (userInfos.length < 2) return;
-
-        // 左侧（梦角）和右侧（我）
-        var leftUser = userInfos[0];
-        var rightUser = userInfos[1];
-
-        // 重新排列：将头像放在名字上面或旁边，在线状态放在名字下方
-        // 这里我们采取：将头像和名字放在同一行，在线状态放在名字右侧或下方
-        // 具体根据红圈样式（猜测是头像在左，名字在右，在线状态在名字下方小字）
-        // 我们重新构建布局
-        function restructureUser(userEl) {
-            var avatar = userEl.querySelector('.avatar-container');
-            var name = userEl.querySelector('.username');
-            var status = userEl.querySelector('.status');
-
-            if (!avatar || !name || !status) return;
-
-            // 清空原有布局
-            userEl.innerHTML = '';
-            userEl.style.cssText = 'display:flex;align-items:center;gap:8px;';
-
-            // 新布局：头像 + 右边 (名字 + 状态)
-            var avatarClone = avatar.cloneNode(true);
-            avatarClone.style.cssText = 'width:32px;height:32px;flex-shrink:0;';
-            userEl.appendChild(avatarClone);
-
-            var infoWrap = document.createElement('div');
-            infoWrap.style.cssText = 'display:flex;flex-direction:column;';
-
-            var nameClone = name.cloneNode(true);
-            nameClone.style.cssText = 'font-size:14px;font-weight:600;color:var(--text-primary);';
-            infoWrap.appendChild(nameClone);
-
-            var statusClone = status.cloneNode(true);
-            statusClone.style.cssText = 'font-size:10px;color:var(--text-secondary);opacity:0.7;';
-            infoWrap.appendChild(statusClone);
-
-            userEl.appendChild(infoWrap);
-        }
-
-        restructureUser(leftUser);
-        restructureUser(rightUser);
-
-        // 调整左右间距，让整体更紧凑
-        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 12px;';
     }
 
     // =============================================
@@ -1104,16 +1130,18 @@
             document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(initBeautyPages, 500);
                 setTimeout(addSettingsEntry, 800);
-                setTimeout(modifyHeaderLayout, 1000);
+                setTimeout(modifyHeaderLayout, 1200);
+                setTimeout(modifyHeaderLayout, 2500);
             });
         } else {
             setTimeout(initBeautyPages, 500);
             setTimeout(addSettingsEntry, 800);
-            setTimeout(modifyHeaderLayout, 1000);
+            setTimeout(modifyHeaderLayout, 1200);
+            setTimeout(modifyHeaderLayout, 2500);
         }
     }
 
     init();
 
-    console.log('[美化页面] 模块已加载（增强版）');
+    console.log('[美化页面] 模块已加载（点击自定义 + 设置联动）');
 })();
