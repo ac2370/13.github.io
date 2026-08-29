@@ -50,6 +50,9 @@ function _getReplyCardsForTimemail() {
     return result;
 }
 
+// 标点符号池
+var PUNCTUATIONS = ['，', '。', '？', '！', '...', '、', '；'];
+
 function _generateTimemail() {
     var cards = _getReplyCardsForTimemail();
     if (cards.length < 2) {
@@ -62,20 +65,29 @@ function _generateTimemail() {
         shuffled[si] = shuffled[sj];
         shuffled[sj] = st;
     }
-    var count = 4 + Math.floor(Math.random() * 3);
+    // 随机取 4~8 句
+    var count = 4 + Math.floor(Math.random() * 5);
     var picked = shuffled.slice(0, Math.min(count, shuffled.length));
-    return picked;
+    
+    // 用标点符号连接
+    var result = '';
+    for (var i = 0; i < picked.length; i++) {
+        var punct = PUNCTUATIONS[Math.floor(Math.random() * PUNCTUATIONS.length)];
+        result += picked[i] + punct;
+    }
+    return { sentences: picked, content: result };
 }
 
 function _sendTimemail() {
-    var letters = _generateTimemail();
-    var content = letters.join('。') + '。';
+    var generated = _generateTimemail();
+    var content = generated.content;
+    var sentences = generated.sentences;
     
     var data = _getTimemailData();
     var letter = {
         id: 'timemail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         content: content,
-        sentences: letters,
+        sentences: sentences,
         timestamp: new Date().toISOString(),
         read: false
     };
@@ -113,7 +125,8 @@ function _autoSendTimemail() {
     });
     if (todayLetters.length >= 3) return;
     
-    if (Math.random() > 0.3) return;
+    // 随机概率：25% 触发，每次只发一封
+    if (Math.random() > 0.25) return;
     
     _sendTimemail();
 }
@@ -145,6 +158,7 @@ function renderTimemailList() {
             var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
             var preview = l.content.length > 40 ? l.content.substring(0, 40) + '…' : l.content;
             
+            // 显示为信封样式（图二风格）
             html += '<div class="env-letter-item" data-id="' + l.id + '" style="background:var(--secondary-bg);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border-color);cursor:pointer;transition:all 0.2s;" onclick="viewTimemail(\'' + l.id + '\')">' +
                 '<div class="env-letter-header">' +
                     '<div class="env-letter-header-from">' +
@@ -154,7 +168,7 @@ function renderTimemailList() {
                     '<div class="env-stamp" style="font-size:10px;color:' + statusColor + ';background:rgba(var(--accent-color-rgb),0.08);padding:2px 10px;border-radius:12px;">' + statusText + '</div>' +
                 '</div>' +
                 '<div class="env-letter-body">' +
-                    '<div class="env-letter-preview">' + _escHtml(preview) + '</div>' +
+                    '<div class="env-letter-preview" style="font-size:13px;color:var(--text-primary);line-height:1.6;">' + _escHtml(preview) + '</div>' +
                 '</div>' +
                 '<button class="env-letter-delete-btn" onclick="deleteTimemail(event,\'' + l.id + '\')">' +
                     '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
@@ -234,35 +248,62 @@ window.viewTimemail = function(id) {
     var date = new Date(letter.timestamp);
     var dateStr = date.getFullYear() + '年' + 
         String(date.getMonth() + 1).padStart(2, '0') + '月' + 
-        String(date.getDate()).padStart(2, '0') + '日 ' +
-        String(date.getHours()).padStart(2, '0') + ':' +
-        String(date.getMinutes()).padStart(2, '0');
+        String(date.getDate()).padStart(2, '0') + '日';
+    var timeStr = String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+    var weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    var weekdayStr = weekdays[date.getDay()];
     
-    var sentencesHtml = '';
-    for (var si = 0; si < letter.sentences.length; si++) {
-        sentencesHtml += '<div style="padding:6px 0;border-bottom:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);">' +
-            '<span style="font-size:14px;color:var(--text-primary);">✦ ' + _escHtml(letter.sentences[si]) + '</span>' +
-        '</div>';
-    }
+    // 构建内容（图三样式）
+    var contentHtml = letter.sentences.map(function(s) {
+        return '<span style="font-size:15px;color:var(--text-primary);line-height:2;">' + _escHtml(s) + '</span>';
+    }).join('');
     
     inner.innerHTML = 
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-            '<span style="font-size:20px;font-weight:700;color:var(--text-primary);">⏳ 时空来信</span>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+            '<span style="font-size:18px;font-weight:700;color:var(--text-primary);">⏳ 时空来信</span>' +
             '<button id="timemail-view-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>' +
         '</div>' +
-        '<div style="text-align:center;padding:8px 0 16px;border-bottom:1px dashed var(--border-color);margin-bottom:12px;">' +
-            '<span style="font-size:13px;color:var(--text-secondary);">✉️ 来自 ' + _escHtml(pName) + '</span>' +
-            '<span style="display:block;font-size:11px;color:var(--text-secondary);opacity:0.6;margin-top:2px;">' + dateStr + '</span>' +
+        // 信封头部（图三风格）
+        '<div style="background:var(--accent-color);padding:12px 16px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;margin:0 -24px 0 -24px;padding-left:24px;padding-right:24px;">' +
+            '<span style="color:#fff;font-size:12px;letter-spacing:2px;">✉️ 已送达</span>' +
+            '<div style="text-align:right;">' +
+                '<span style="color:rgba(255,255,255,0.8);font-size:11px;display:block;">' + dateStr + '</span>' +
+                '<span style="color:rgba(255,255,255,0.6);font-size:9px;letter-spacing:1px;">DELIVERED</span>' +
+            '</div>' +
         '</div>' +
-        '<div style="margin-bottom:12px;">' + sentencesHtml + '</div>' +
-        '<div style="text-align:center;padding-top:12px;border-top:1px dashed var(--border-color);">' +
-            '<span style="font-size:12px;color:var(--text-secondary);opacity:0.6;">— 跨越时空的思念 —</span>' +
+        // 信件内容（图三样式）
+        '<div style="padding:16px 4px 12px;background:var(--primary-bg);border-radius:0 0 12px 12px;border:1px solid var(--border-color);border-top:none;">' +
+            '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;letter-spacing:1px;">' + dateStr + ' 星期' + weekdayStr + '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;font-style:italic;">致 ' + _escHtml(pName) + '，</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;font-style:italic;">见字如面，望君安好。</div>' +
+            '<div style="padding:8px 0 12px;border-top:1px dashed rgba(var(--border-color-rgb),0.3);margin-bottom:8px;">' +
+                contentHtml +
+            '</div>' +
+            '<div style="text-align:right;font-size:12px;color:var(--text-secondary);margin-top:8px;">' + dateStr + '</div>' +
+            '<div style="text-align:right;font-size:14px;color:var(--accent-color);font-weight:600;letter-spacing:1px;">' + _escHtml(pName) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px;">' +
+            '<button id="timemail-close-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">关闭</button>' +
+            '<button id="timemail-edit-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">编辑</button>' +
         '</div>';
     
     wrap.appendChild(inner);
     document.body.appendChild(wrap);
     
     document.getElementById('timemail-view-close').onclick = function() { wrap.remove(); };
+    document.getElementById('timemail-close-btn').onclick = function() { wrap.remove(); };
+    document.getElementById('timemail-edit-btn').onclick = function() {
+        var newContent = prompt('编辑信件内容（修改后保存）：', letter.content);
+        if (newContent !== null && newContent.trim()) {
+            letter.content = newContent.trim();
+            // 更新 sentences
+            letter.sentences = newContent.trim().split(/[，。？！…、；]/).filter(function(s) { return s.trim(); });
+            _setTimemailData(data);
+            renderTimemailList();
+            wrap.remove();
+            _notify('信件已更新', 'success');
+        }
+    };
     wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
 };
 
@@ -727,11 +768,10 @@ function handleSendEnvelope() {
 }
 
 // =============================================
-// 强制创建时空来信 Tab（不检查任何标记）
+// 强制创建时空来信 Tab
 // =============================================
 
 function _injectTimemailHTML() {
-    // 不检查任何标记，直接删除旧的重新创建
     var oldTab = document.getElementById('env-tab-timemail');
     if (oldTab) {
         oldTab.parentNode.removeChild(oldTab);
@@ -747,7 +787,6 @@ function _injectTimemailHTML() {
     var inboxTab = document.getElementById('env-tab-inbox');
     if (!inboxTab) return;
     
-    // 统一风格：先改"寄出的信"和"收到的信"
     var outboxTab = document.getElementById('env-tab-outbox');
     var inboxTabExisting = document.getElementById('env-tab-inbox');
     
@@ -773,7 +812,6 @@ function _injectTimemailHTML() {
         }
     }
     
-    // 创建"时空来信"Tab（使用完全相同的样式）
     var timemailTab = document.createElement('button');
     timemailTab.id = 'env-tab-timemail';
     timemailTab.className = 'env-tab-btn';
@@ -792,14 +830,12 @@ function _injectTimemailHTML() {
     
     inboxTab.parentNode.insertBefore(timemailTab, inboxTab.nextSibling);
     
-    // 默认激活"寄出的信"
     if (outboxTab) {
         outboxTab.style.color = 'var(--text-primary)';
         outboxTab.style.borderBottom = '2px solid var(--accent-color)';
         outboxTab.style.background = 'var(--secondary-bg)';
     }
     
-    // 创建时空来信面板（使用统一空状态样式）
     var inboxSection = document.getElementById('env-inbox-section');
     if (!inboxSection) return;
     
@@ -846,15 +882,17 @@ function _injectTimemailToggle() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
-        // 强制创建时空来信
         _injectTimemailHTML();
         _injectTimemailToggle();
         renderTimemailList();
         updateTimemailBadge();
-        _autoSendTimemail();
-        setInterval(function() {
+        // 初始发送一封（延迟5分钟），之后每30分钟检查一次
+        setTimeout(function() {
             _autoSendTimemail();
         }, 300000);
+        setInterval(function() {
+            _autoSendTimemail();
+        }, 1800000);
     }, 800);
 });
 
