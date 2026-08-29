@@ -1,4 +1,4 @@
-// beauty-pages.js - 自定义个人主页布局（修复移动端交互）
+// beauty-pages.js - 自定义个人主页布局（修复版）
 (function() {
     'use strict';
 
@@ -114,6 +114,7 @@
     var lastTouchTime = 0;
     var touchCount = 0;
 
+    // ---- 工具函数 ----
     function _getConfig() {
         try {
             var saved = localStorage.getItem(STORAGE_KEY);
@@ -192,7 +193,6 @@
         if (avatarEl) {
             if (pageData.avatar) { avatarEl.src = pageData.avatar; avatarEl.style.display = 'block'; }
             else { avatarEl.style.display = 'none'; }
-            // 隐藏默认图标
             var def = avatarEl.parentElement.querySelector('.bp-avatar-def');
             if (def) { def.style.display = pageData.avatar ? 'none' : 'flex'; }
         }
@@ -390,7 +390,7 @@
     }
 
     // =============================================
-    // 创建指示器（含触摸支持）
+    // 添加指示器
     // =============================================
     function addIndicator(wrapper) {
         var indicator = document.createElement('div');
@@ -448,27 +448,13 @@
             indicator.appendChild(dot);
         }
 
-        // ---- 双击检测（同时支持鼠标和触摸） ----
-        var clickTimer = null;
-        var clickCount = 0;
-        var isDoubleClick = false;
-
-        function handlePointerDown(e) {
-            // 如果是触摸，用 touch 事件；如果是鼠标，用 click 事件
-            // 但我们统一用 pointerdown 或 click，但为了双击检测，我们用 click 加时间差
-            // 但移动端 touch 会触发 click，导致双击误判，所以我们用 touchstart 配合时间检测
-            // 这里采用简单方法：在 touchstart 中记录时间
-        }
-
-        // 移动端双击检测：使用 touchstart + touchend 时间差
+        // ---- 移动端双击检测（touch） ----
         var lastTouchEnd = 0;
         var touchTimer = null;
         indicator.addEventListener('touchstart', function(e) {
-            // 防止触发页面滑动
             e.stopPropagation();
             var now = Date.now();
             if (now - lastTouchEnd < 400) {
-                // 双击
                 clearTimeout(touchTimer);
                 handleIndicatorDoubleClick(e);
                 lastTouchEnd = 0;
@@ -476,7 +462,6 @@
                 return;
             }
             lastTouchEnd = now;
-            // 延迟执行单击，等待可能的双击
             touchTimer = setTimeout(function() {
                 if (lastTouchEnd && Date.now() - lastTouchEnd < 300) return;
                 handleIndicatorClick(e);
@@ -486,7 +471,6 @@
         // PC 双击检测
         var lastClickTime = 0;
         indicator.addEventListener('click', function(e) {
-            // 如果触摸设备，已经用 touchstart 处理了，这里防止重复
             if ('ontouchstart' in window) return;
             var now = Date.now();
             if (now - lastClickTime < 400) {
@@ -501,7 +485,7 @@
             }
         });
 
-        // ---- 长按拖动（触摸） ----
+        // ---- 移动端长按拖动 ----
         var pressTimerTouch = null;
         var isPressedTouch = false;
         var dragStartXTouch = 0, dragStartYTouch = 0;
@@ -563,7 +547,7 @@
             isPressedTouch = false;
         }, { passive: false });
 
-        // ---- PC 长按拖动（鼠标） ----
+        // ---- PC 长按拖动 ----
         var mouseDown = false;
         var mouseDragStartX = 0, mouseDragStartY = 0;
         var mouseDragOrigLeft = 0, mouseDragOrigTop = 0;
@@ -634,7 +618,7 @@
     }
 
     // =============================================
-    // 页面滑动（保持原有逻辑）
+    // 页面滑动
     // =============================================
     function bindTouchEvents(wrapper, track) {
         var startX = 0, startIndex = 0, isDragging = false;
@@ -708,7 +692,7 @@
     }
 
     // =============================================
-    // 创建页面（与之前相同，但确保所有函数完整）
+    // 创建美化页面
     // =============================================
     function createBeautyPage(index) {
         var page = document.createElement('div');
@@ -759,7 +743,9 @@
             gap: 8px;
         `;
 
+        // =============================================
         // 模块1：顶部信息
+        // =============================================
         var module1 = document.createElement('div');
         module1.className = 'bp-module bp-module-1';
         module1.style.cssText = `
@@ -821,7 +807,9 @@
         module1.appendChild(rightWrap);
         content.appendChild(module1);
 
+        // =============================================
         // 模块2：纪念日 + 重叠拍立得
+        // =============================================
         var module2 = document.createElement('div');
         module2.className = 'bp-module bp-module-2';
         module2.style.cssText = 'display:flex;gap:8px;cursor:pointer;';
@@ -916,7 +904,9 @@
         module2.appendChild(opWrap);
         content.appendChild(module2);
 
+        // =============================================
         // 模块3：音乐播放器
+        // =============================================
         var module3 = document.createElement('div');
         module3.className = 'bp-module bp-module-3';
         module3.style.cssText = `
@@ -935,6 +925,7 @@
             if (e.target.closest('.bp-music-play')) return;
             openMusicSettings(index);
         });
+
         var mcWrap = document.createElement('div');
         mcWrap.style.cssText = 'position:relative;flex-shrink:0;';
         var mc = document.createElement('img');
@@ -991,7 +982,9 @@
         module3.appendChild(playBtn);
         content.appendChild(module3);
 
+        // =============================================
         // 模块4：联系人
+        // =============================================
         var module4 = document.createElement('div');
         module4.className = 'bp-module bp-module-4';
         module4.style.cssText = `
@@ -1010,6 +1003,7 @@
             e.stopPropagation();
             openContactSettings(index);
         });
+
         var cAvWrap = document.createElement('div');
         cAvWrap.style.cssText = 'position:relative;flex-shrink:0;';
         var cAv = document.createElement('img');
@@ -1042,7 +1036,9 @@
         module4.appendChild(dots);
         content.appendChild(module4);
 
+        // =============================================
         // 模块5：大图
+        // =============================================
         var module5 = document.createElement('div');
         module5.className = 'bp-module bp-module-5';
         module5.style.cssText = `
@@ -1058,6 +1054,7 @@
             e.stopPropagation();
             openBigImageSettings(index);
         });
+
         var bigImg = document.createElement('img');
         bigImg.className = 'bp-big-img';
         bigImg.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
@@ -1068,7 +1065,9 @@
         module5.appendChild(bigPlace);
         content.appendChild(module5);
 
+        // =============================================
         // 模块6：四张拍立得
+        // =============================================
         var module6 = document.createElement('div');
         module6.className = 'bp-module bp-module-6';
         module6.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;cursor:pointer;';
@@ -1076,6 +1075,7 @@
             if (e.target.closest('.bp-polaroid-item')) return;
             openPolaroidsSettings(index);
         });
+
         for (var p = 0; p < 4; p++) {
             var polItem = document.createElement('div');
             polItem.className = 'bp-polaroid-item';
@@ -1112,7 +1112,7 @@
     }
 
     // =============================================
-    // 各模块设置函数（保持完整，略作简化，但功能完整）
+    // 各模块设置函数
     // =============================================
     function openAnniversarySettings(pageIndex) {
         var old = document.getElementById('ann-settings-modal');
@@ -1421,60 +1421,7 @@
     }
 
     // =============================================
-    // 初始化
-    // =============================================
-    function initBeautyPages() {
-        config = _getConfig();
-        if (document.getElementById('beauty-pages-wrapper')) return;
-        var chatContainer = document.querySelector('.main-chat-area');
-        if (!chatContainer) {
-            console.warn('[美化页面] 找不到聊天容器');
-            return;
-        }
-        var wrapper = document.createElement('div');
-        wrapper.id = 'beauty-pages-wrapper';
-        wrapper.style.cssText = `
-            position: relative;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            touch-action: pan-y;
-        `;
-        var track = document.createElement('div');
-        track.id = 'beauty-pages-track';
-        track.style.cssText = `
-            display: flex;
-            height: 100%;
-            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-            will-change: transform;
-        `;
-        var chatPage = document.createElement('div');
-        chatPage.className = 'beauty-page beauty-page-chat';
-        chatPage.style.cssText = 'flex:0 0 100%;height:100%;overflow-y:auto;position:relative;';
-        while (chatContainer.firstChild) {
-            chatPage.appendChild(chatContainer.firstChild);
-        }
-        track.appendChild(chatPage);
-        var beautyPage1 = createBeautyPage(1);
-        track.appendChild(beautyPage1);
-        var beautyPage2 = createBeautyPage(2);
-        track.appendChild(beautyPage2);
-        wrapper.appendChild(track);
-        chatContainer.appendChild(wrapper);
-        addIndicator(wrapper);
-        goToPage(config.currentIndex || 0, false);
-        bindTouchEvents(wrapper, track);
-        window.beautyPages = {
-            goToPage: goToPage,
-            openSettings: openBeautySettings,
-            getConfig: function() { return config; },
-            refresh: refreshAllPages
-        };
-        console.log('[美化页面] 已初始化（自定义个人主页布局，修复移动端交互）');
-    }
-
-    // =============================================
-    // 设置面板（简化但保留所有入口）
+    // 设置面板（主面板）
     // =============================================
     function openBeautySettings(pageIndex) {
         var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
@@ -1615,7 +1562,7 @@
         bindSettingsEvents();
     }
 
-    // 绑定设置事件（略作简化，但保持完整）
+    // 绑定设置事件
     function bindSettingsEvents() {
         // 背景图
         document.querySelectorAll('.beauty-bg-upload').forEach(function(btn) {
@@ -1894,6 +1841,59 @@
     }
 
     // =============================================
+    // 初始化
+    // =============================================
+    function initBeautyPages() {
+        config = _getConfig();
+        if (document.getElementById('beauty-pages-wrapper')) return;
+        var chatContainer = document.querySelector('.main-chat-area');
+        if (!chatContainer) {
+            console.warn('[美化页面] 找不到聊天容器');
+            return;
+        }
+        var wrapper = document.createElement('div');
+        wrapper.id = 'beauty-pages-wrapper';
+        wrapper.style.cssText = `
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: pan-y;
+        `;
+        var track = document.createElement('div');
+        track.id = 'beauty-pages-track';
+        track.style.cssText = `
+            display: flex;
+            height: 100%;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
+        `;
+        var chatPage = document.createElement('div');
+        chatPage.className = 'beauty-page beauty-page-chat';
+        chatPage.style.cssText = 'flex:0 0 100%;height:100%;overflow-y:auto;position:relative;';
+        while (chatContainer.firstChild) {
+            chatPage.appendChild(chatContainer.firstChild);
+        }
+        track.appendChild(chatPage);
+        var beautyPage1 = createBeautyPage(1);
+        track.appendChild(beautyPage1);
+        var beautyPage2 = createBeautyPage(2);
+        track.appendChild(beautyPage2);
+        wrapper.appendChild(track);
+        chatContainer.appendChild(wrapper);
+        addIndicator(wrapper);
+        goToPage(config.currentIndex || 0, false);
+        bindTouchEvents(wrapper, track);
+        window.beautyPages = {
+            goToPage: goToPage,
+            openSettings: openBeautySettings,
+            getConfig: function() { return config; },
+            refresh: refreshAllPages
+        };
+        console.log('[美化页面] 已初始化（自定义个人主页布局）');
+    }
+
+    // =============================================
     // 启动
     // =============================================
     function init() {
@@ -1913,5 +1913,5 @@
     }
 
     init();
-    console.log('[美化页面] 模块已加载（修复移动端交互）');
+    console.log('[美化页面] 模块已加载（完整版）');
 })();
