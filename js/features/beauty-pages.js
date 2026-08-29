@@ -1,4 +1,4 @@
-// beauty-pages.js - 全局美化页面（双击解锁拖动，单击切换页面）
+// beauty-pages.js - 美化页面（图1风格个人主页布局）
 (function() {
     'use strict';
 
@@ -15,15 +15,19 @@
                 label: '阿晏&小回',
                 bgImage: '',
                 avatar: '',
-                title: '',
-                subtitle: '',
+                title: '阿晏',
+                subtitle: '🌍 地球online',
+                status: '晴天',
                 tags: [
-                    { key: '昵称', value: '小回' },
-                    { key: '副文', value: '星河入梦' },
-                    { key: '标签', value: '✨ 温柔' },
-                    { key: '文案', value: '你是人间理想' },
-                    { key: '注册', value: '2026-08-29' },
-                    { key: '标题', value: '✨ 星河入梦 ✨' }
+                    { key: 'the name', value: '是被疼爱' },
+                    { key: '我觉得还星', value: '' },
+                    { key: '宇宙在你沉睡时消失不见.', value: '' },
+                    { key: '你有什喵事', value: '' },
+                    { key: '喜欢', value: '' },
+                    { key: '爱是秩序外的一瞬间', value: '' },
+                    { key: '一起去乌鲁鲁星吧..', value: '' },
+                    { key: '在一起', value: '' },
+                    { key: '小回&阿晏', value: '' }
                 ],
                 textColor: '#ffffff',
                 fontSize: 20,
@@ -37,15 +41,19 @@
                 label: '阿晏&66',
                 bgImage: '',
                 avatar: '',
-                title: '',
-                subtitle: '',
+                title: '阿晏',
+                subtitle: '🌙 月色温柔',
+                status: '66',
                 tags: [
-                    { key: '昵称', value: '66' },
-                    { key: '副文', value: '月色温柔' },
-                    { key: '标签', value: '🌙 偏爱' },
-                    { key: '文案', value: '你是我唯一的偏爱' },
-                    { key: '注册', value: '2026-08-29' },
-                    { key: '标题', value: '🌙 月色温柔 🌙' }
+                    { key: 'the name', value: '66' },
+                    { key: '我觉得还星', value: '' },
+                    { key: '宇宙在你沉睡时消失不见.', value: '' },
+                    { key: '你有什喵事', value: '' },
+                    { key: '喜欢', value: '' },
+                    { key: '爱是秩序外的一瞬间', value: '' },
+                    { key: '一起去乌鲁鲁星吧..', value: '' },
+                    { key: '在一起', value: '' },
+                    { key: '66&阿晏', value: '' }
                 ],
                 textColor: '#ffffff',
                 fontSize: 20,
@@ -62,12 +70,12 @@
     var isAnimating = false;
 
     // ---- 拖动相关 ----
-    var isDraggable = false;          // 是否允许拖动（双击解锁）
+    var isDraggable = false;
     var indicatorDragging = false;
     var dragStartX = 0, dragStartY = 0;
     var dragOrigLeft = 0, dragOrigTop = 0;
-    var longPressTimer = null;        // 长按定时器
-    var isLongPress = false;
+    var pressTimer = null;
+    var isPressed = false;
 
     function _getConfig() {
         try {
@@ -81,6 +89,10 @@
                         if (parsed.pages[i][key] === undefined) {
                             parsed.pages[i][key] = DEFAULT_CONFIG.pages[i][key];
                         }
+                    }
+                    // 确保 status 字段存在
+                    if (parsed.pages[i].status === undefined) {
+                        parsed.pages[i].status = '';
                     }
                 }
                 return parsed;
@@ -109,6 +121,9 @@
         }
     }
 
+    // =============================================
+    // 更新美化页面（图1风格布局）
+    // =============================================
     function updateBeautyPage(index) {
         var pageData = config.pages[index];
         if (!pageData || pageData.type !== 'beauty') return;
@@ -116,6 +131,7 @@
         var pageEl = document.querySelector('.beauty-page-' + index);
         if (!pageEl) return;
 
+        // 背景
         var bgLayer = pageEl.querySelector('.beauty-bg-layer');
         if (bgLayer) {
             if (pageData.bgImage) {
@@ -127,6 +143,44 @@
             }
         }
 
+        // 头像
+        var avatarEl = pageEl.querySelector('.beauty-avatar-img');
+        if (avatarEl) {
+            if (pageData.avatar) {
+                avatarEl.src = pageData.avatar;
+                avatarEl.style.display = 'block';
+            } else {
+                avatarEl.src = '';
+                avatarEl.style.display = 'none';
+            }
+        }
+
+        // 名字（标题）
+        var titleEl = pageEl.querySelector('.beauty-title');
+        if (titleEl) {
+            titleEl.textContent = pageData.title || '未定义';
+            titleEl.style.color = pageData.textColor || '#ffffff';
+            titleEl.style.fontSize = (pageData.fontSize || 20) + 'px';
+        }
+
+        // 状态标签
+        var statusEl = pageEl.querySelector('.beauty-status');
+        if (statusEl) {
+            statusEl.textContent = pageData.status || '';
+            statusEl.style.display = pageData.status ? 'inline-block' : 'none';
+            statusEl.style.color = pageData.textColor || '#ffffff';
+            statusEl.style.fontSize = (pageData.fontSize ? pageData.fontSize * 0.7 : 14) + 'px';
+        }
+
+        // 副标题
+        var subtitleEl = pageEl.querySelector('.beauty-subtitle');
+        if (subtitleEl) {
+            subtitleEl.textContent = pageData.subtitle || '';
+            subtitleEl.style.color = pageData.subtitleColor || 'rgba(255,255,255,0.7)';
+            subtitleEl.style.fontSize = (pageData.subtitleSize || 14) + 'px';
+        }
+
+        // 标签列表
         var tagContainer = pageEl.querySelector('.beauty-tags');
         if (tagContainer) {
             tagContainer.innerHTML = '';
@@ -144,21 +198,41 @@
                 tags.forEach(function(tag) {
                     var row = document.createElement('div');
                     row.className = 'beauty-tag-row';
-                    row.style.cssText = `
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 12px 0;
-                        border-bottom: 1px solid rgba(255,255,255,0.06);
-                        font-size: ${pageData.tagSize || 16}px;
-                        color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
-                        cursor: pointer;
-                        transition: background 0.2s;
-                        align-items: center;
-                    `;
-                    row.innerHTML = `
-                        <span style="opacity:0.6;font-weight:300;">${_esc(tag.key)}</span>
-                        <span style="font-weight:400;">${_esc(tag.value)}</span>
-                    `;
+                    var hasValue = tag.value && tag.value.trim() !== '';
+                    if (hasValue) {
+                        // 有值：左右布局
+                        row.style.cssText = `
+                            display: flex;
+                            justify-content: space-between;
+                            padding: 6px 0;
+                            border-bottom: 1px solid rgba(255,255,255,0.04);
+                            font-size: ${pageData.tagSize || 16}px;
+                            color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
+                            cursor: pointer;
+                            transition: background 0.2s;
+                            align-items: center;
+                        `;
+                        row.innerHTML = `
+                            <span style="opacity:0.5;font-weight:300;">${_esc(tag.key)}</span>
+                            <span style="font-weight:400;">${_esc(tag.value)}</span>
+                        `;
+                    } else {
+                        // 空值：居中显示（如“我觉得还星”）
+                        row.style.cssText = `
+                            display: flex;
+                            justify-content: center;
+                            padding: 6px 0;
+                            border-bottom: 1px solid rgba(255,255,255,0.04);
+                            font-size: ${pageData.tagSize || 16}px;
+                            color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
+                            cursor: pointer;
+                            transition: background 0.2s;
+                            align-items: center;
+                        `;
+                        row.innerHTML = `
+                            <span style="font-weight:400;letter-spacing:0.5px;">${_esc(tag.key)}</span>
+                        `;
+                    }
                     row.addEventListener('click', function(e) {
                         e.stopPropagation();
                         openBeautySettings(index);
@@ -271,11 +345,10 @@
     }
 
     // =============================================
-    // 指示器事件处理（单击切换页面，长按拖动）
+    // 指示器事件处理
     // =============================================
     function handleIndicatorClick(e) {
         e.stopPropagation();
-        // 如果正在拖动，不处理点击
         if (indicatorDragging) return;
         var dot = e.target.closest('.beauty-dot');
         if (dot) {
@@ -303,7 +376,205 @@
     }
 
     // =============================================
-    // 创建可拖动指示器
+    // 创建美化页面（图1风格布局）
+    // =============================================
+    function createBeautyPage(index) {
+        var page = document.createElement('div');
+        page.className = 'beauty-page beauty-page-' + index;
+        page.style.cssText = `
+            flex: 0 0 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            padding: 16px;
+            box-sizing: border-box;
+        `;
+
+        // 背景层
+        var bgLayer = document.createElement('div');
+        bgLayer.className = 'beauty-bg-layer';
+        bgLayer.style.cssText = `
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0;
+            transition: opacity 0.5s ease;
+            opacity: 0;
+            cursor: pointer;
+        `;
+        bgLayer.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
+        page.appendChild(bgLayer);
+
+        // 卡片
+        var card = document.createElement('div');
+        card.className = 'beauty-card';
+        card.style.cssText = `
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 20px 18px;
+            width: 100%;
+            max-width: 360px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        `;
+
+        // ---- 顶部：头像 + 名字 + 状态 ----
+        var header = document.createElement('div');
+        header.className = 'beauty-header';
+        header.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+        `;
+        header.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
+
+        // 头像
+        var avatarWrap = document.createElement('div');
+        avatarWrap.className = 'beauty-avatar-wrap';
+        avatarWrap.style.cssText = `
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.15);
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        var avatarImg = document.createElement('img');
+        avatarImg.className = 'beauty-avatar-img';
+        avatarImg.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        `;
+        avatarWrap.appendChild(avatarImg);
+        // 如果没有头像，显示默认图标
+        var defaultIcon = document.createElement('i');
+        defaultIcon.className = 'fas fa-user';
+        defaultIcon.style.cssText = 'font-size:20px;color:rgba(255,255,255,0.3);';
+        avatarWrap.appendChild(defaultIcon);
+        header.appendChild(avatarWrap);
+
+        // 名字和状态
+        var infoWrap = document.createElement('div');
+        infoWrap.className = 'beauty-header-info';
+        infoWrap.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        `;
+
+        var nameStatusRow = document.createElement('div');
+        nameStatusRow.className = 'beauty-name-status';
+        nameStatusRow.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        `;
+
+        var titleEl = document.createElement('span');
+        titleEl.className = 'beauty-title';
+        titleEl.style.cssText = `
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        `;
+        nameStatusRow.appendChild(titleEl);
+
+        var statusEl = document.createElement('span');
+        statusEl.className = 'beauty-status';
+        statusEl.style.cssText = `
+            font-size: 13px;
+            font-weight: 400;
+            color: rgba(255,255,255,0.7);
+            background: rgba(255,255,255,0.08);
+            padding: 2px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            letter-spacing: 0.3px;
+            display: none;
+        `;
+        nameStatusRow.appendChild(statusEl);
+
+        infoWrap.appendChild(nameStatusRow);
+
+        var subtitleEl = document.createElement('div');
+        subtitleEl.className = 'beauty-subtitle';
+        subtitleEl.style.cssText = `
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            text-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            margin-top: 2px;
+            letter-spacing: 0.3px;
+            transition: all 0.3s ease;
+            line-height: 1.4;
+        `;
+        infoWrap.appendChild(subtitleEl);
+
+        header.appendChild(infoWrap);
+        card.appendChild(header);
+
+        // ---- 分隔线 ----
+        var divider = document.createElement('div');
+        divider.style.cssText = `
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 8px 0 10px;
+        `;
+        card.appendChild(divider);
+
+        // ---- 标签列表 ----
+        var tagContainer = document.createElement('div');
+        tagContainer.className = 'beauty-tags';
+        tagContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+            cursor: pointer;
+        `;
+        tagContainer.addEventListener('click', function(e) {
+            if (e.target === tagContainer) {
+                openBeautySettings(index);
+            }
+        });
+        card.appendChild(tagContainer);
+
+        page.appendChild(card);
+        updateBeautyPage(index);
+
+        return page;
+    }
+
+    // =============================================
+    // 指示器
     // =============================================
     function addIndicator(wrapper) {
         var indicator = document.createElement('div');
@@ -366,7 +637,6 @@
         indicator.addEventListener('click', function(e) {
             var now = Date.now();
             if (now - lastClickTime < 400) {
-                // 双击
                 handleIndicatorDoubleClick(e);
                 lastClickTime = 0;
             } else {
@@ -378,10 +648,7 @@
             }
         });
 
-        // ---- 长按拖动（仅在 isDraggable 为 true 时生效） ----
-        var pressTimer = null;
-        var isPressed = false;
-
+        // ---- 长按拖动 ----
         function startPress(e) {
             if (!isDraggable) return;
             isPressed = true;
@@ -393,7 +660,6 @@
             dragStartY = clientY - rect.top;
             dragOrigLeft = rect.left;
             dragOrigTop = rect.top;
-            // 长按 300ms 后进入拖动模式
             pressTimer = setTimeout(function() {
                 if (isPressed) {
                     indicatorDragging = true;
@@ -407,7 +673,6 @@
             if (!isDraggable || !isPressed) return;
             var clientX = e.clientX || e.touches[0].clientX;
             var clientY = e.clientY || e.touches[0].clientY;
-            // 如果已经进入拖动模式，移动指示器
             if (indicatorDragging) {
                 var newLeft = clientX - dragStartX;
                 var newTop = clientY - dragStartY;
@@ -422,7 +687,6 @@
                 indicator.style.transform = 'none';
                 if (e.cancelable) e.preventDefault();
             } else {
-                // 如果移动距离过大，取消长按（防止长按被误触）
                 var rect = indicator.getBoundingClientRect();
                 var dx = (clientX - dragStartX - rect.left);
                 var dy = (clientY - dragStartY - rect.top);
@@ -437,7 +701,6 @@
         function endPress(e) {
             clearTimeout(pressTimer);
             if (indicatorDragging) {
-                // 拖动结束，保存位置
                 var rect = indicator.getBoundingClientRect();
                 saveIndicatorPosition(rect.left, rect.top);
                 indicatorDragging = false;
@@ -447,17 +710,14 @@
             if (e.cancelable) e.preventDefault();
         }
 
-        // 鼠标事件
         indicator.addEventListener('mousedown', startPress);
         document.addEventListener('mousemove', movePress);
         document.addEventListener('mouseup', endPress);
 
-        // 触摸事件
         indicator.addEventListener('touchstart', startPress, { passive: false });
         document.addEventListener('touchmove', movePress, { passive: false });
         document.addEventListener('touchend', endPress, { passive: false });
 
-        // 阻止在拖动时触发页面滑动
         indicator.addEventListener('touchmove', function(e) {
             if (indicatorDragging) e.stopPropagation();
         }, { passive: false });
@@ -471,7 +731,7 @@
     }
 
     // =============================================
-    // 页面滑动（与指示器隔离）
+    // 页面滑动
     // =============================================
     function bindTouchEvents(wrapper, track) {
         var startX = 0, startIndex = 0, isDragging = false;
@@ -622,75 +882,8 @@
     }
 
     // =============================================
-    // 初始化页面
+    // 初始化
     // =============================================
-    function createBeautyPage(index) {
-        var page = document.createElement('div');
-        page.className = 'beauty-page beauty-page-' + index;
-        page.style.cssText = `
-            flex: 0 0 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            padding: 20px;
-            box-sizing: border-box;
-        `;
-
-        var bgLayer = document.createElement('div');
-        bgLayer.className = 'beauty-bg-layer';
-        bgLayer.style.cssText = `
-            position: absolute;
-            inset: 0;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 0;
-            transition: opacity 0.5s ease;
-            opacity: 0;
-            cursor: pointer;
-        `;
-        bgLayer.addEventListener('click', function(e) {
-            e.stopPropagation();
-            openBeautySettings(index);
-        });
-        page.appendChild(bgLayer);
-
-        var card = document.createElement('div');
-        card.className = 'beauty-card';
-        card.style.cssText = `
-            position: relative;
-            z-index: 1;
-            background: rgba(255,255,255,0.04);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-radius: 16px;
-            padding: 16px 20px;
-            width: 100%;
-            max-width: 360px;
-            border: 1px solid rgba(255,255,255,0.06);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        `;
-
-        var tagContainer = document.createElement('div');
-        tagContainer.className = 'beauty-tags';
-        tagContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        `;
-        card.appendChild(tagContainer);
-
-        page.appendChild(card);
-        updateBeautyPage(index);
-
-        return page;
-    }
-
     function initBeautyPages() {
         config = _getConfig();
 
@@ -760,7 +953,7 @@
     }
 
     // =============================================
-    // 设置面板
+    // 设置面板（增加状态编辑）
     // =============================================
     function openBeautySettings(pageIndex) {
         var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
@@ -861,7 +1054,57 @@
                     </div>
                 </div>
                 <div style="margin-bottom:8px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">标签列表</label>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">头像</label>
+                    <div style="display:flex;gap:8px;">
+                        <button class="beauty-avatar-upload" data-page="${pi}" style="flex:1;padding:8px;border:1.5px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">📤 上传头像</button>
+                        <button class="beauty-avatar-url" data-page="${pi}" style="flex:1;padding:8px;border:1.5px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">🔗 URL</button>
+                        <button class="beauty-avatar-clear" data-page="${pi}" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:#ff6b6b;font-size:12px;cursor:pointer;font-family:var(--font-family);">清除</button>
+                    </div>
+                    <input type="file" class="beauty-avatar-file" data-page="${pi}" accept="image/*" style="display:none;">
+                    <div class="beauty-avatar-preview" data-page="${pi}" style="display:${pageData.avatar ? 'block' : 'none'};margin-top:6px;border-radius:50%;overflow:hidden;width:48px;height:48px;border:2px solid var(--border-color);">
+                        <img src="${pageData.avatar || ''}" style="width:100%;height:100%;object-fit:cover;display:block;">
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">名字</label>
+                    <input class="beauty-title-input" data-page="${pi}" type="text" value="${_esc(pageData.title || '未定义')}" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:var(--font-family);">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">状态标签（显示在名字旁）</label>
+                    <input class="beauty-status-input" data-page="${pi}" type="text" value="${_esc(pageData.status || '')}" placeholder="如：晴天" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:var(--font-family);">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">副标题</label>
+                    <input class="beauty-subtitle-input" data-page="${pi}" type="text" value="${_esc(pageData.subtitle || '')}" placeholder="如：🌍 地球online" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:var(--font-family);">
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">名字颜色</label>
+                        <input class="beauty-color-input" data-page="${pi}" data-key="textColor" type="color" value="${pageData.textColor || '#ffffff'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
+                    </div>
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">名字大小</label>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input class="beauty-size-input" data-page="${pi}" data-key="fontSize" type="range" min="16" max="48" value="${pageData.fontSize || 20}" style="flex:1;">
+                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.fontSize || 20}px</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">副标题颜色</label>
+                        <input class="beauty-color-input" data-page="${pi}" data-key="subtitleColor" type="color" value="${pageData.subtitleColor || 'rgba(255,255,255,0.7)'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
+                    </div>
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">副标题大小</label>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input class="beauty-size-input" data-page="${pi}" data-key="subtitleSize" type="range" min="10" max="24" value="${pageData.subtitleSize || 14}" style="flex:1;">
+                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.subtitleSize || 14}px</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">标签列表（空值=居中显示）</label>
                     <div id="beauty-tags-container-${pi}" style="display:flex;flex-direction:column;gap:2px;">
                         ${tagsHtml}
                     </div>
@@ -875,8 +1118,8 @@
                     <div style="flex:1;min-width:80px;">
                         <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">标签大小</label>
                         <div style="display:flex;align-items:center;gap:6px;">
-                            <input class="beauty-size-input" data-page="${pi}" data-key="tagSize" type="range" min="10" max="20" value="${pageData.tagSize || 14}" style="flex:1;">
-                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.tagSize || 14}px</span>
+                            <input class="beauty-size-input" data-page="${pi}" data-key="tagSize" type="range" min="10" max="20" value="${pageData.tagSize || 16}" style="flex:1;">
+                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.tagSize || 16}px</span>
                         </div>
                     </div>
                 </div>
@@ -908,7 +1151,11 @@
         bindSettingsEvents();
     }
 
+    // =============================================
+    // 绑定设置事件
+    // =============================================
     function bindSettingsEvents() {
+        // 背景图
         document.querySelectorAll('.beauty-bg-upload').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
@@ -970,11 +1217,127 @@
             };
         });
 
+        // 头像
+        document.querySelectorAll('.beauty-avatar-upload').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                var fileInput = document.querySelector('.beauty-avatar-file[data-page="' + page + '"]');
+                if (fileInput) fileInput.click();
+            };
+        });
+        document.querySelectorAll('.beauty-avatar-file').forEach(function(input) {
+            input.onchange = function(e) {
+                var page = parseInt(this.dataset.page);
+                var file = e.target.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var data = ev.target.result;
+                    config.pages[page].avatar = data;
+                    _saveConfig();
+                    updateBeautyPage(page);
+                    var preview = document.querySelector('.beauty-avatar-preview[data-page="' + page + '"]');
+                    var img = preview ? preview.querySelector('img') : null;
+                    if (preview && img) {
+                        img.src = data;
+                        preview.style.display = 'block';
+                    }
+                    _notify('头像已加载', 'success', 1000);
+                };
+                reader.readAsDataURL(file);
+                this.value = '';
+            };
+        });
+        document.querySelectorAll('.beauty-avatar-url').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                var url = prompt('请输入头像图片URL地址：');
+                if (url && url.trim()) {
+                    config.pages[page].avatar = url.trim();
+                    _saveConfig();
+                    updateBeautyPage(page);
+                    var preview = document.querySelector('.beauty-avatar-preview[data-page="' + page + '"]');
+                    var img = preview ? preview.querySelector('img') : null;
+                    if (preview && img) {
+                        img.src = url.trim();
+                        preview.style.display = 'block';
+                    }
+                    _notify('头像已更新', 'success', 1000);
+                }
+            };
+        });
+        document.querySelectorAll('.beauty-avatar-clear').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                if (!confirm('确定清除头像吗？')) return;
+                config.pages[page].avatar = '';
+                _saveConfig();
+                updateBeautyPage(page);
+                var preview = document.querySelector('.beauty-avatar-preview[data-page="' + page + '"]');
+                if (preview) preview.style.display = 'none';
+                _notify('头像已清除', 'info');
+            };
+        });
+
+        // 名字
+        document.querySelectorAll('.beauty-title-input').forEach(function(input) {
+            input.onchange = function() {
+                var page = parseInt(this.dataset.page);
+                config.pages[page].title = this.value.trim() || '未定义';
+                _saveConfig();
+                updateBeautyPage(page);
+            };
+        });
+
+        // 状态
+        document.querySelectorAll('.beauty-status-input').forEach(function(input) {
+            input.onchange = function() {
+                var page = parseInt(this.dataset.page);
+                config.pages[page].status = this.value.trim();
+                _saveConfig();
+                updateBeautyPage(page);
+            };
+        });
+
+        // 副标题
+        document.querySelectorAll('.beauty-subtitle-input').forEach(function(input) {
+            input.onchange = function() {
+                var page = parseInt(this.dataset.page);
+                config.pages[page].subtitle = this.value.trim();
+                _saveConfig();
+                updateBeautyPage(page);
+            };
+        });
+
+        // 颜色/大小
+        document.querySelectorAll('.beauty-color-input').forEach(function(input) {
+            input.onchange = function() {
+                var page = parseInt(this.dataset.page);
+                var key = this.dataset.key;
+                config.pages[page][key] = this.value;
+                _saveConfig();
+                updateBeautyPage(page);
+            };
+        });
+        document.querySelectorAll('.beauty-size-input').forEach(function(input) {
+            input.oninput = function() {
+                var page = parseInt(this.dataset.page);
+                var key = this.dataset.key;
+                var val = parseInt(this.value);
+                config.pages[page][key] = val;
+                _saveConfig();
+                updateBeautyPage(page);
+                var valEl = this.parentElement.querySelector('.beauty-size-value');
+                if (valEl) valEl.textContent = val + 'px';
+            };
+        });
+
+        // 标签
         document.querySelectorAll('.beauty-tag-add').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
                 var tags = config.pages[page].tags || [];
-                tags.push({ key: '新标签', value: '内容' });
+                tags.push({ key: '新标签', value: '' });
                 config.pages[page].tags = tags;
                 _saveConfig();
                 var container = document.getElementById('beauty-tags-container-' + page);
@@ -984,7 +1347,7 @@
                         newHtml += `
                             <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
                                 <input class="beauty-tag-key" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容（留空则居中）" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
                                 <button class="beauty-tag-remove" data-page="${page}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
                             </div>
                         `;
@@ -1016,7 +1379,7 @@
                     var idx = parseInt(this.dataset.idx);
                     var tags = config.pages[page].tags || [];
                     if (tags[idx]) {
-                        tags[idx].value = this.value.trim() || '内容';
+                        tags[idx].value = this.value.trim();
                         _saveConfig();
                         updateBeautyPage(page);
                     }
@@ -1038,7 +1401,7 @@
                                 newHtml += `
                                     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
                                         <input class="beauty-tag-key" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                        <input class="beauty-tag-value" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                        <input class="beauty-tag-value" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.value)}" placeholder="内容（留空则居中）" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
                                         <button class="beauty-tag-remove" data-page="${page}" data-idx="${i}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
                                     </div>
                                 `;
@@ -1110,5 +1473,5 @@
 
     init();
 
-    console.log('[美化页面] 模块已加载（双击解锁，长按拖动）');
+    console.log('[美化页面] 模块已加载（图1风格布局）');
 })();
