@@ -1,4 +1,4 @@
-// moments.js - 朋友圈功能（完整版，支持群成员随机发布）
+// moments.js - 朋友圈功能（微信风格版）
 (function() {
     'use strict';
 
@@ -40,7 +40,6 @@
         return result;
     }
 
-    // 获取群聊成员列表（含头像）
     function _getGroupMembers() {
         var defaultMembers = [
             { name: '沈星回', avatar: '' },
@@ -71,13 +70,11 @@
         return defaultMembers;
     }
 
-    // 随机获取一个群成员
     function _getRandomGroupMember() {
         var members = _getGroupMembers();
         return members[Math.floor(Math.random() * members.length)];
     }
 
-    // 从自定义回复库中随机取2~4条，用标点拼接
     function _generatePartnerPostText() {
         var cards = _getReplyCards();
         if (cards.length < 2) {
@@ -90,7 +87,7 @@
             shuffled[i] = shuffled[j];
             shuffled[j] = temp;
         }
-        var count = 2 + Math.floor(Math.random() * 3); // 2~4
+        var count = 2 + Math.floor(Math.random() * 3);
         var picked = shuffled.slice(0, Math.min(count, shuffled.length));
         var puncts = ['，', '。', '？', '！', '...', '、', '；'];
         var result = '';
@@ -136,6 +133,23 @@
     function _setCoverImage(data) { localStorage.setItem(COVER_KEY, data); }
     function _clearCoverImage() { localStorage.removeItem(COVER_KEY); }
 
+    // 获取我的头像（从头像框设置中读取）
+    function _getMyAvatar() {
+        try {
+            var avatarData = localStorage.getItem('myAvatar');
+            if (avatarData) {
+                var parsed = JSON.parse(avatarData);
+                if (parsed && parsed.data) return parsed.data;
+            }
+            var frameData = localStorage.getItem('myFrameData');
+            if (frameData) {
+                var parsed = JSON.parse(frameData);
+                if (parsed && parsed.avatar) return parsed.avatar;
+            }
+        } catch(e) {}
+        return null;
+    }
+
     function _getData() {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { posts: [], lastGenerateDate: '' }; } catch { return { posts: [], lastGenerateDate: '' }; }
     }
@@ -148,12 +162,11 @@
         });
     }
 
-    // 添加帖子（支持指定发布者名字和头像）
     function _addPost(author, text, timestamp, memberName, memberAvatar) {
         var data = _getData();
         var post = {
             id: _generateId(),
-            author: author, // 'me' 或 'partner'
+            author: author,
             text: text.trim(),
             timestamp: timestamp || new Date().toISOString(),
             likes: 0,
@@ -174,7 +187,6 @@
         _setData(data);
     }
 
-    // 点赞（触发对方3分钟内回赞）
     function _toggleLike(postId) {
         var data = _getData();
         var post = data.posts.find(function(p) { return p.id === postId; });
@@ -186,7 +198,7 @@
             post.likes += 1;
             post.likedByMe = true;
             if (post.author === 'partner') {
-                var delay = Math.random() * 180000; // 0~3分钟
+                var delay = Math.random() * 180000;
                 setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = freshPosts.find(function(p) { return p.id === postId; });
@@ -203,7 +215,6 @@
         _setData(data);
     }
 
-    // 添加评论
     function _addComment(postId, author, text) {
         var data = _getData();
         var post = data.posts.find(function(p) { return p.id === postId; });
@@ -221,7 +232,6 @@
         return comment;
     }
 
-    // 添加回复（对评论的回复）
     function _addReplyToComment(postId, commentId, replyText) {
         var data = _getData();
         var post = data.posts.find(function(p) { return p.id === postId; });
@@ -236,11 +246,15 @@
         _setData(data);
     }
 
-    // 生成梦角的动态（每天2~4条，随机成员，随机内容）
-    function _generatePartnerPosts() {
+    // 强制生成梦角的动态
+    function _forceGeneratePartnerPosts() {
         var data = _getData();
         var today = new Date().toDateString();
-        if (data.lastGenerateDate === today) return;
+        if (data.lastGenerateDate === today && data.posts.filter(function(p) { return p.author === 'partner'; }).length > 0) {
+            return;
+        }
+        // 清除旧的 partner 动态
+        data.posts = data.posts.filter(function(p) { return p.author !== 'partner'; });
         var count = 2 + Math.floor(Math.random() * 3);
         var now = new Date();
         for (var idx = 0; idx < count; idx++) {
@@ -386,9 +400,7 @@
         }
     }
 
-    // =============================================
-    // 回复弹窗（对评论的回复）
-    // =============================================
+    // 回复弹窗
     function showReplyModal(postId, commentId) {
         var old = document.getElementById('reply-modal');
         if (old) old.remove();
@@ -418,9 +430,7 @@
         document.getElementById('reply-submit').onclick = function() {
             var text = document.getElementById('reply-text').value.trim();
             if (!text) { _notify('请输入回复内容', 'warning'); return; }
-
             _addReplyToComment(postId, commentId, text);
-
             close();
             var container = document.getElementById('moments-content');
             var activeTab = document.querySelector('.moments-tab.active');
@@ -430,7 +440,7 @@
     }
 
     // =============================================
-    // 渲染Tab内容
+    // 渲染Tab内容（微信风格）
     // =============================================
     function renderTab(tab, container) {
         var posts = _getPosts();
@@ -439,10 +449,10 @@
             if (posts[i].author === tab) filtered.push(posts[i]);
         }
         if (filtered.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-secondary);background:rgba(var(--primary-bg-rgb),0.6);border-radius:16px;backdrop-filter:blur(4px);">' +
-                '<div style="font-size:48px;margin-bottom:12px;">📭</div>' +
-                '<div style="font-size:15px;font-weight:600;">还没有动态</div>' +
-                '<div style="font-size:13px;opacity:0.7;">' + (tab === 'me' ? '点击右下角 + 发布你的第一条吧' : '成员们还没有发过动态哦') + '</div>' +
+            container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-secondary);">' +
+                '<div style="font-size:48px;margin-bottom:16px;">📭</div>' +
+                '<div style="font-size:15px;font-weight:500;">还没有动态</div>' +
+                '<div style="font-size:13px;opacity:0.6;margin-top:4px;">' + (tab === 'me' ? '点击右下角 + 发布你的第一条吧' : '成员们还没有发过动态哦') + '</div>' +
                 '</div>';
             return;
         }
@@ -454,12 +464,16 @@
             var name, avatarHtml;
             if (isMe) {
                 name = _getMyName();
-                avatarHtml = '👤';
+                var myAvatar = _getMyAvatar();
+                if (myAvatar) {
+                    avatarHtml = '<img src="' + _esc(myAvatar) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(var(--border-color-rgb),0.1);">';
+                } else {
+                    avatarHtml = '👤';
+                }
             } else {
-                // 使用存储的成员名字和头像
                 name = post.memberName || _getPartnerName();
                 if (post.memberAvatar) {
-                    avatarHtml = '<img src="' + _esc(post.memberAvatar) + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid rgba(var(--border-color-rgb),0.1);">';
+                    avatarHtml = '<img src="' + _esc(post.memberAvatar) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(var(--border-color-rgb),0.1);">';
                 } else {
                     avatarHtml = '🌸';
                 }
@@ -467,47 +481,44 @@
             var time = formatTime(post.timestamp);
             var commentCount = post.comments.length;
 
-            html += '<div class="moments-post" data-id="' + post.id + '" style="background:rgba(var(--secondary-bg-rgb,255,255,255),0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;padding:14px 16px;margin-bottom:14px;border:1px solid rgba(var(--border-color-rgb,0,0,0),0.08);box-shadow:0 2px 8px rgba(0,0,0,0.04);">' +
+            html += '<div class="moments-post" data-id="' + post.id + '" style="background:rgba(var(--secondary-bg-rgb,255,255,255),0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;padding:16px 16px 12px;margin-bottom:14px;border:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);box-shadow:0 1px 4px rgba(0,0,0,0.04);">' +
                 // 头像 + 名字 + 时间
-                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
-                    '<span style="font-size:18px;display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;">' + avatarHtml + '</span>' +
-                    '<span style="font-weight:600;color:var(--text-primary);font-size:14px;">' + _esc(name) + '</span>' +
-                    '<span style="font-size:11px;color:var(--text-secondary);margin-left:auto;">' + time + '</span>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+                    '<span style="font-size:20px;display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;">' + avatarHtml + '</span>' +
+                    '<span style="font-weight:600;color:var(--text-primary);font-size:15px;">' + _esc(name) + '</span>' +
+                    '<span style="font-size:12px;color:var(--text-secondary);margin-left:auto;">' + time + '</span>' +
                 '</div>' +
                 // 文字内容
-                '<div style="font-size:15px;color:var(--text-primary);margin:4px 0 10px;word-wrap:break-word;line-height:1.6;">' + _esc(post.text) + '</div>' +
+                '<div style="font-size:16px;color:var(--text-primary);margin:4px 0 12px;word-wrap:break-word;line-height:1.7;padding-left:2px;">' + _esc(post.text) + '</div>' +
                 // 点赞 + 评论 按钮
-                '<div style="display:flex;gap:16px;align-items:center;border-top:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);padding-top:10px;">' +
-                    '<button class="moments-like-btn" data-id="' + post.id + '" style="background:none;border:none;color:' + (post.likedByMe ? 'var(--accent-color)' : 'var(--text-secondary)') + ';font-size:13px;cursor:pointer;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;' + (post.likedByMe ? 'background:rgba(var(--accent-color-rgb),0.1);' : '') + '">' +
+                '<div style="display:flex;gap:20px;align-items:center;border-top:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);padding-top:10px;">' +
+                    '<button class="moments-like-btn" data-id="' + post.id + '" style="background:none;border:none;color:' + (post.likedByMe ? 'var(--accent-color)' : 'var(--text-secondary)') + ';font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;' + (post.likedByMe ? 'background:rgba(var(--accent-color-rgb),0.08);' : '') + '">' +
                         (post.likedByMe ? '❤️' : '🤍') + ' <span>' + post.likes + '</span>' +
                     '</button>' +
-                    '<button class="moments-comment-btn" data-id="' + post.id + '" style="background:none;border:none;color:var(--text-secondary);font-size:13px;cursor:pointer;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;">' +
+                    '<button class="moments-comment-btn" data-id="' + post.id + '" style="background:none;border:none;color:var(--text-secondary);font-size:14px;cursor:pointer;padding:4px 8px;border-radius:12px;display:flex;align-items:center;gap:4px;">' +
                         '💬 <span>' + commentCount + '</span>' +
                     '</button>' +
-                    (isMe ? '<button class="moments-delete-btn" data-id="' + post.id + '" style="background:none;border:none;color:#ff6b6b;font-size:13px;cursor:pointer;padding:2px 8px;border-radius:12px;margin-left:auto;">🗑️</button>' : '') +
+                    (isMe ? '<button class="moments-delete-btn" data-id="' + post.id + '" style="background:none;border:none;color:#ff6b6b;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:12px;margin-left:auto;">🗑️</button>' : '') +
                 '</div>' +
                 // 评论列表
-                (post.comments.length > 0 ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(var(--border-color-rgb,0,0,0),0.12);">' : '');
+                (post.comments.length > 0 ? '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(var(--border-color-rgb,0,0,0),0.06);">' : '');
 
             for (var ci = 0; ci < post.comments.length; ci++) {
                 var c = post.comments[ci];
                 var cName = c.author === 'me' ? _getMyName() : _getPartnerName();
                 var cAvatar = c.author === 'me' ? '👤' : '🌸';
                 var cTime = formatTime(c.timestamp);
-                var isCommentFromMe = c.author === 'me';
 
                 html += '<div style="margin-bottom:8px;padding:4px 0;">' +
                     '<div style="display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;">' +
                         '<span style="font-weight:600;font-size:13px;">' + cAvatar + ' ' + _esc(cName) + '</span> ' +
                         '<span style="color:var(--text-primary);font-size:13px;">' + _esc(c.text) + '</span> ' +
                         '<span style="font-size:10px;color:var(--text-secondary);">' + cTime + '</span>' +
-                        // 回复按钮（对评论的回复）
-                        '<button class="moments-reply-to-comment" data-postid="' + post.id + '" data-commentid="' + c.id + '" style="background:none;border:none;color:var(--accent-color);font-size:11px;cursor:pointer;padding:0 4px;opacity:0.7;">回复</button>' +
+                        '<button class="moments-reply-to-comment" data-postid="' + post.id + '" data-commentid="' + c.id + '" style="background:none;border:none;color:var(--accent-color);font-size:11px;cursor:pointer;padding:0 4px;opacity:0.6;">回复</button>' +
                     '</div>';
 
-                // 对方回复（引用样式）
                 if (c.reply) {
-                    html += '<div style="margin-left:20px;margin-top:2px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.04);border-radius:8px;border-left:2px solid rgba(var(--accent-color-rgb),0.2);font-size:12px;color:var(--text-secondary);">' +
+                    html += '<div style="margin-left:20px;margin-top:2px;padding:6px 12px;background:rgba(var(--accent-color-rgb),0.05);border-radius:8px;border-left:2px solid rgba(var(--accent-color-rgb),0.2);font-size:13px;color:var(--text-secondary);">' +
                         '<span style="font-weight:500;color:var(--text-primary);">🌸 ' + _getPartnerName() + '</span> ' +
                         '<span style="color:var(--text-primary);">' + _esc(c.reply.text) + '</span> ' +
                         '<span style="font-size:10px;color:var(--text-secondary);">' + formatTime(c.reply.timestamp) + '</span>' +
@@ -664,9 +675,8 @@
             if (container && activeTab) renderTab(activeTab.dataset.tab, container);
             _notify('评论已发送', 'success');
 
-            // 如果帖子是对方的（partner），5分钟内对方自动回复
             if (post.author === 'partner') {
-                var delay = Math.random() * 300000; // 0~5分钟
+                var delay = Math.random() * 300000;
                 setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = null;
@@ -699,10 +709,11 @@
     }
 
     // =============================================
-    // 朋友圈主界面
+    // 朋友圈主界面（微信风格）
     // =============================================
     window.openMoments = function() {
-        _generatePartnerPosts();
+        // 强制生成群成员动态
+        _forceGeneratePartnerPosts();
 
         var old = document.getElementById('moments-modal');
         if (old) old.remove();
@@ -712,26 +723,28 @@
         wrap.style.cssText = 'position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
 
         var inner = document.createElement('div');
-        inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:0;width:min(480px, 94vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:0;width:min(460px, 94vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
-        // ===== 顶部封面区域 =====
+        // ===== 顶部封面区域（微信风格） =====
         var coverUrl = _getCoverImage();
-        var defaultCover = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        var defaultCover = 'linear-gradient(135deg, #2d1b3d 0%, #1a1a2e 50%, #16213e 100%)';
         var coverStyle = coverUrl ? 'url(' + coverUrl + ')' : defaultCover;
 
         var coverSection = document.createElement('div');
         coverSection.id = 'moments-cover';
-        coverSection.style.cssText = 'position:relative;width:100%;height:140px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;transition:background 0.3s ease;';
+        coverSection.style.cssText = 'position:relative;width:100%;height:160px;background:' + coverStyle + ';background-size:cover;background-position:center;flex-shrink:0;cursor:pointer;transition:background 0.3s ease;';
 
+        // 封面格言
         var coverText = document.createElement('div');
-        coverText.style.cssText = 'position:absolute;bottom:14px;left:16px;right:16px;color:rgba(255,255,255,0.9);text-shadow:0 2px 12px rgba(0,0,0,0.3);';
+        coverText.style.cssText = 'position:absolute;bottom:16px;left:18px;right:18px;color:rgba(255,255,255,0.95);text-shadow:0 2px 16px rgba(0,0,0,0.4);';
         coverText.innerHTML =
-            '<div style="font-size:15px;font-weight:300;letter-spacing:2px;font-style:italic;line-height:1.5;">誓言是一场有时差的雨。</div>' +
-            '<div style="font-size:10px;opacity:0.7;margin-top:2px;letter-spacing:1px;font-weight:300;">— Vow is a rain with time difference.</div>';
+            '<div style="font-size:17px;font-weight:300;letter-spacing:2px;font-style:italic;line-height:1.5;">誓言是一场有时差的雨。</div>' +
+            '<div style="font-size:11px;opacity:0.6;margin-top:2px;letter-spacing:1.5px;font-weight:300;">— Vow is a rain with time difference.</div>';
         coverSection.appendChild(coverText);
 
+        // 更换封面按钮
         var coverBtnHint = document.createElement('div');
-        coverBtnHint.style.cssText = 'position:absolute;top:10px;right:12px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);padding:3px 10px;border-radius:12px;font-size:10px;color:rgba(255,255,255,0.8);pointer-events:none;';
+        coverBtnHint.style.cssText = 'position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);padding:4px 12px;border-radius:14px;font-size:11px;color:rgba(255,255,255,0.85);pointer-events:none;';
         coverBtnHint.textContent = '📷 更换封面';
         coverSection.appendChild(coverBtnHint);
 
@@ -741,9 +754,9 @@
 
         inner.appendChild(coverSection);
 
-        // ===== 标题栏 =====
+        // ===== 标题栏（微信风格） =====
         var header = document.createElement('div');
-        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-color);flex-shrink:0;';
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 18px 10px;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--primary-bg);';
 
         var leftSection = document.createElement('div');
         leftSection.style.cssText = 'display:flex;align-items:center;gap:8px;';
@@ -754,7 +767,7 @@
         leftSection.appendChild(backBtn);
 
         var titleSpan = document.createElement('span');
-        titleSpan.style.cssText = 'font-size:16px;font-weight:700;color:var(--text-primary);';
+        titleSpan.style.cssText = 'font-size:17px;font-weight:700;color:var(--text-primary);';
         titleSpan.textContent = '📱 朋友圈';
         leftSection.appendChild(titleSpan);
         header.appendChild(leftSection);
@@ -773,27 +786,27 @@
         header.appendChild(rightSection);
         inner.appendChild(header);
 
-        // ===== Tab切换 =====
+        // ===== Tab切换（微信风格：带下划线） =====
         var tabBar = document.createElement('div');
-        tabBar.style.cssText = 'display:flex;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--primary-bg);';
-        tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:10px;border:none;background:var(--secondary-bg);font-weight:700;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:13px;">我的</button>' +
-            '<button class="moments-tab" data-tab="partner" style="flex:1;padding:10px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">群成员</button>';
+        tabBar.style.cssText = 'display:flex;border-bottom:1px solid rgba(var(--border-color-rgb,0,0,0),0.08);flex-shrink:0;background:var(--primary-bg);padding:0 16px;';
+        tabBar.innerHTML = '<button class="moments-tab active" data-tab="me" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:600;color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid var(--accent-color);">我的</button>' +
+            '<button class="moments-tab" data-tab="partner" style="flex:1;padding:12px 4px 10px;border:none;background:transparent;font-weight:400;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:14px;position:relative;border-bottom:2px solid transparent;">群成员</button>';
         inner.appendChild(tabBar);
 
         // ===== 内容列表 =====
         var contentContainer = document.createElement('div');
         contentContainer.id = 'moments-content';
-        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px;background:var(--secondary-bg);';
+        contentContainer.style.cssText = 'flex:1;overflow-y:auto;padding:12px 16px 16px;background:var(--secondary-bg);';
 
         renderTab('me', contentContainer);
         inner.appendChild(contentContainer);
 
         // ===== 底部发布按钮 =====
         var footer = document.createElement('div');
-        footer.style.cssText = 'display:flex;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);backdrop-filter:blur(8px);';
+        footer.style.cssText = 'display:flex;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid var(--border-color);flex-shrink:0;background:rgba(var(--primary-bg-rgb),0.95);backdrop-filter:blur(8px);';
         var addBtn = document.createElement('button');
         addBtn.id = 'moments-add-btn';
-        addBtn.style.cssText = 'width:36px;height:36px;border-radius:50%;background:#000;color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+        addBtn.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#000;color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.2);';
         addBtn.textContent = '+';
         addBtn.title = '发布新动态';
         addBtn.onclick = function() { showPublishModal(); };
@@ -808,12 +821,14 @@
             btn.addEventListener('click', function() {
                 tabBar.querySelectorAll('.moments-tab').forEach(function(b) {
                     b.classList.remove('active');
-                    b.style.background = 'transparent';
                     b.style.color = 'var(--text-secondary)';
+                    b.style.borderBottom = '2px solid transparent';
+                    b.style.fontWeight = '400';
                 });
                 this.classList.add('active');
-                this.style.background = 'var(--secondary-bg)';
                 this.style.color = 'var(--text-primary)';
+                this.style.borderBottom = '2px solid var(--accent-color)';
+                this.style.fontWeight = '600';
                 var tab = this.dataset.tab;
                 renderTab(tab, contentContainer);
                 var addBtnEl = document.getElementById('moments-add-btn');
@@ -822,5 +837,5 @@
         });
     };
 
-    console.log('[朋友圈] 模块已加载（完整版，支持群成员随机发布）');
+    console.log('[朋友圈] 模块已加载（微信风格版）');
 })();
