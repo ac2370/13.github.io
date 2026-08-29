@@ -1407,8 +1407,8 @@ if (_cancelEnvEl) _cancelEnvEl.addEventListener('click', () => {
                 hideModal(DOMElements.advancedModal.modal);
             });
         }
-    const annToggleBtn = document.getElementById('ann-toggle-btn');
-    const annFormWrapper = document.getElementById('ann-form-wrapper');
+    var annToggleBtn = document.getElementById('ann-toggle-btn');
+    var annFormWrapper = document.getElementById('ann-form-wrapper');
 
     if (annToggleBtn && annFormWrapper) {
         annToggleBtn.addEventListener('click', () => {
