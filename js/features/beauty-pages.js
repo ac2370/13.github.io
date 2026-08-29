@@ -1,4 +1,4 @@
-// beauty-pages.js - 美化页面（图1风格个人主页布局）
+// beauty-pages.js - 美化页面（拍立得照片墙）
 (function() {
     'use strict';
 
@@ -18,23 +18,16 @@
                 title: '阿晏',
                 subtitle: '🌍 地球online',
                 status: '晴天',
-                tags: [
-                    { key: 'the name', value: '是被疼爱' },
-                    { key: '我觉得还星', value: '' },
-                    { key: '宇宙在你沉睡时消失不见.', value: '' },
-                    { key: '你有什喵事', value: '' },
-                    { key: '喜欢', value: '' },
-                    { key: '爱是秩序外的一瞬间', value: '' },
-                    { key: '一起去乌鲁鲁星吧..', value: '' },
-                    { key: '在一起', value: '' },
-                    { key: '小回&阿晏', value: '' }
+                photos: [
+                    { id: 0, url: '' },
+                    { id: 1, url: '' },
+                    { id: 2, url: '' },
+                    { id: 3, url: '' }
                 ],
                 textColor: '#ffffff',
                 fontSize: 20,
-                subtitleColor: 'rgba(255,255,255,0.7)',
-                subtitleSize: 14,
-                tagColor: 'rgba(255,255,255,0.85)',
-                tagSize: 16
+                subtitleColor: '#b3b3b3',
+                subtitleSize: 14
             },
             {
                 type: 'beauty',
@@ -44,23 +37,16 @@
                 title: '阿晏',
                 subtitle: '🌙 月色温柔',
                 status: '66',
-                tags: [
-                    { key: 'the name', value: '66' },
-                    { key: '我觉得还星', value: '' },
-                    { key: '宇宙在你沉睡时消失不见.', value: '' },
-                    { key: '你有什喵事', value: '' },
-                    { key: '喜欢', value: '' },
-                    { key: '爱是秩序外的一瞬间', value: '' },
-                    { key: '一起去乌鲁鲁星吧..', value: '' },
-                    { key: '在一起', value: '' },
-                    { key: '66&阿晏', value: '' }
+                photos: [
+                    { id: 0, url: '' },
+                    { id: 1, url: '' },
+                    { id: 2, url: '' },
+                    { id: 3, url: '' }
                 ],
                 textColor: '#ffffff',
                 fontSize: 20,
-                subtitleColor: 'rgba(255,255,255,0.7)',
-                subtitleSize: 14,
-                tagColor: 'rgba(255,255,255,0.85)',
-                tagSize: 16
+                subtitleColor: '#b3b3b3',
+                subtitleSize: 14
             }
         ],
         currentIndex: 0
@@ -90,10 +76,18 @@
                             parsed.pages[i][key] = DEFAULT_CONFIG.pages[i][key];
                         }
                     }
-                    // 确保 status 字段存在
-                    if (parsed.pages[i].status === undefined) {
-                        parsed.pages[i].status = '';
+                    if (!parsed.pages[i].photos || !Array.isArray(parsed.pages[i].photos)) {
+                        parsed.pages[i].photos = [
+                            { id: 0, url: '' },
+                            { id: 1, url: '' },
+                            { id: 2, url: '' },
+                            { id: 3, url: '' }
+                        ];
                     }
+                    parsed.pages[i].photos.forEach(function(p, idx) {
+                        if (p.id === undefined) p.id = idx;
+                        if (p.url === undefined) p.url = '';
+                    });
                 }
                 return parsed;
             }
@@ -122,7 +116,7 @@
     }
 
     // =============================================
-    // 更新美化页面（图1风格布局）
+    // 更新美化页面（拍立得照片墙）
     // =============================================
     function updateBeautyPage(index) {
         var pageData = config.pages[index];
@@ -144,18 +138,20 @@
         }
 
         // 头像
-        var avatarEl = pageEl.querySelector('.beauty-avatar-img');
-        if (avatarEl) {
+        var avatarImg = pageEl.querySelector('.beauty-avatar-img');
+        var defaultIcon = pageEl.querySelector('.beauty-avatar-default');
+        if (avatarImg && defaultIcon) {
             if (pageData.avatar) {
-                avatarEl.src = pageData.avatar;
-                avatarEl.style.display = 'block';
+                avatarImg.src = pageData.avatar;
+                avatarImg.style.display = 'block';
+                defaultIcon.style.display = 'none';
             } else {
-                avatarEl.src = '';
-                avatarEl.style.display = 'none';
+                avatarImg.style.display = 'none';
+                defaultIcon.style.display = 'block';
             }
         }
 
-        // 名字（标题）
+        // 名字
         var titleEl = pageEl.querySelector('.beauty-title');
         if (titleEl) {
             titleEl.textContent = pageData.title || '未定义';
@@ -168,78 +164,34 @@
         if (statusEl) {
             statusEl.textContent = pageData.status || '';
             statusEl.style.display = pageData.status ? 'inline-block' : 'none';
-            statusEl.style.color = pageData.textColor || '#ffffff';
-            statusEl.style.fontSize = (pageData.fontSize ? pageData.fontSize * 0.7 : 14) + 'px';
         }
 
         // 副标题
         var subtitleEl = pageEl.querySelector('.beauty-subtitle');
         if (subtitleEl) {
             subtitleEl.textContent = pageData.subtitle || '';
-            subtitleEl.style.color = pageData.subtitleColor || 'rgba(255,255,255,0.7)';
+            subtitleEl.style.color = pageData.subtitleColor || '#b3b3b3';
             subtitleEl.style.fontSize = (pageData.subtitleSize || 14) + 'px';
         }
 
-        // 标签列表
-        var tagContainer = pageEl.querySelector('.beauty-tags');
-        if (tagContainer) {
-            tagContainer.innerHTML = '';
-            var tags = pageData.tags || [];
-            if (tags.length === 0) {
-                var empty = document.createElement('div');
-                empty.style.cssText = 'text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:14px;';
-                empty.textContent = '点击添加标签';
-                empty.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    openBeautySettings(index);
-                });
-                tagContainer.appendChild(empty);
-            } else {
-                tags.forEach(function(tag) {
-                    var row = document.createElement('div');
-                    row.className = 'beauty-tag-row';
-                    var hasValue = tag.value && tag.value.trim() !== '';
-                    if (hasValue) {
-                        // 有值：左右布局
-                        row.style.cssText = `
-                            display: flex;
-                            justify-content: space-between;
-                            padding: 6px 0;
-                            border-bottom: 1px solid rgba(255,255,255,0.04);
-                            font-size: ${pageData.tagSize || 16}px;
-                            color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
-                            cursor: pointer;
-                            transition: background 0.2s;
-                            align-items: center;
-                        `;
-                        row.innerHTML = `
-                            <span style="opacity:0.5;font-weight:300;">${_esc(tag.key)}</span>
-                            <span style="font-weight:400;">${_esc(tag.value)}</span>
-                        `;
-                    } else {
-                        // 空值：居中显示（如“我觉得还星”）
-                        row.style.cssText = `
-                            display: flex;
-                            justify-content: center;
-                            padding: 6px 0;
-                            border-bottom: 1px solid rgba(255,255,255,0.04);
-                            font-size: ${pageData.tagSize || 16}px;
-                            color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
-                            cursor: pointer;
-                            transition: background 0.2s;
-                            align-items: center;
-                        `;
-                        row.innerHTML = `
-                            <span style="font-weight:400;letter-spacing:0.5px;">${_esc(tag.key)}</span>
-                        `;
-                    }
-                    row.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        openBeautySettings(index);
-                    });
-                    tagContainer.appendChild(row);
-                });
-            }
+        // ---- 四张照片 ----
+        var photoGrid = pageEl.querySelector('.beauty-photo-grid');
+        if (photoGrid) {
+            var photos = pageData.photos || [];
+            var photoItems = photoGrid.querySelectorAll('.beauty-photo-item');
+            photoItems.forEach(function(item, idx) {
+                var img = item.querySelector('img');
+                var placeholder = item.querySelector('.beauty-photo-placeholder');
+                var url = photos[idx] && photos[idx].url ? photos[idx].url : '';
+                if (url) {
+                    img.src = url;
+                    img.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                } else {
+                    img.style.display = 'none';
+                    if (placeholder) placeholder.style.display = 'flex';
+                }
+            });
         }
     }
 
@@ -344,9 +296,6 @@
         }
     }
 
-    // =============================================
-    // 指示器事件处理
-    // =============================================
     function handleIndicatorClick(e) {
         e.stopPropagation();
         if (indicatorDragging) return;
@@ -376,7 +325,7 @@
     }
 
     // =============================================
-    // 创建美化页面（图1风格布局）
+    // 创建美化页面（拍立得照片墙）
     // =============================================
     function createBeautyPage(index) {
         var page = document.createElement('div');
@@ -425,7 +374,7 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-radius: 16px;
-            padding: 20px 18px;
+            padding: 16px 14px 18px;
             width: 100%;
             max-width: 360px;
             border: 1px solid rgba(255,255,255,0.06);
@@ -438,8 +387,8 @@
         header.style.cssText = `
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 8px;
             cursor: pointer;
         `;
         header.addEventListener('click', function(e) {
@@ -451,8 +400,8 @@
         var avatarWrap = document.createElement('div');
         avatarWrap.className = 'beauty-avatar-wrap';
         avatarWrap.style.cssText = `
-            width: 48px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             overflow: hidden;
             border: 2px solid rgba(255,255,255,0.15);
@@ -461,63 +410,40 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         `;
         var avatarImg = document.createElement('img');
         avatarImg.className = 'beauty-avatar-img';
-        avatarImg.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        `;
+        avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
         avatarWrap.appendChild(avatarImg);
-        // 如果没有头像，显示默认图标
         var defaultIcon = document.createElement('i');
-        defaultIcon.className = 'fas fa-user';
-        defaultIcon.style.cssText = 'font-size:20px;color:rgba(255,255,255,0.3);';
+        defaultIcon.className = 'beauty-avatar-default fas fa-user';
+        defaultIcon.style.cssText = 'font-size:16px;color:rgba(255,255,255,0.3);';
         avatarWrap.appendChild(defaultIcon);
         header.appendChild(avatarWrap);
 
         // 名字和状态
         var infoWrap = document.createElement('div');
         infoWrap.className = 'beauty-header-info';
-        infoWrap.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-width: 0;
-        `;
+        infoWrap.style.cssText = 'display:flex;flex-direction:column;flex:1;min-width:0;';
 
         var nameStatusRow = document.createElement('div');
-        nameStatusRow.className = 'beauty-name-status';
-        nameStatusRow.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        `;
+        nameStatusRow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
 
         var titleEl = document.createElement('span');
         titleEl.className = 'beauty-title';
-        titleEl.style.cssText = `
-            font-size: 20px;
-            font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-            letter-spacing: 0.5px;
-        `;
+        titleEl.style.cssText = 'font-size:18px;font-weight:700;color:#ffffff;text-shadow:0 2px 8px rgba(0,0,0,0.2);letter-spacing:0.5px;';
         nameStatusRow.appendChild(titleEl);
 
         var statusEl = document.createElement('span');
         statusEl.className = 'beauty-status';
         statusEl.style.cssText = `
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 400;
             color: rgba(255,255,255,0.7);
             background: rgba(255,255,255,0.08);
-            padding: 2px 10px;
-            border-radius: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.06);
             letter-spacing: 0.3px;
             display: none;
@@ -528,53 +454,206 @@
 
         var subtitleEl = document.createElement('div');
         subtitleEl.className = 'beauty-subtitle';
-        subtitleEl.style.cssText = `
-            font-size: 13px;
-            color: rgba(255,255,255,0.6);
-            text-shadow: 0 1px 4px rgba(0,0,0,0.15);
-            margin-top: 2px;
-            letter-spacing: 0.3px;
-            transition: all 0.3s ease;
-            line-height: 1.4;
-        `;
+        subtitleEl.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);text-shadow:0 1px 4px rgba(0,0,0,0.15);margin-top:1px;letter-spacing:0.3px;line-height:1.3;';
         infoWrap.appendChild(subtitleEl);
 
         header.appendChild(infoWrap);
         card.appendChild(header);
 
-        // ---- 分隔线 ----
-        var divider = document.createElement('div');
-        divider.style.cssText = `
-            height: 1px;
-            background: rgba(255,255,255,0.06);
-            margin: 8px 0 10px;
-        `;
-        card.appendChild(divider);
+        // ---- 照片网格 (2x2) ----
+        var grid = document.createElement('div');
+        grid.className = 'beauty-photo-grid';
+        grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;';
 
-        // ---- 标签列表 ----
-        var tagContainer = document.createElement('div');
-        tagContainer.className = 'beauty-tags';
-        tagContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 0px;
-            cursor: pointer;
-        `;
-        tagContainer.addEventListener('click', function(e) {
-            if (e.target === tagContainer) {
-                openBeautySettings(index);
-            }
-        });
-        card.appendChild(tagContainer);
+        for (var i = 0; i < 4; i++) {
+            var item = document.createElement('div');
+            item.className = 'beauty-photo-item';
+            item.dataset.photoIndex = i;
+            item.style.cssText = `
+                position: relative;
+                aspect-ratio: 1 / 1;
+                border-radius: 8px;
+                overflow: hidden;
+                background: rgba(255,255,255,0.03);
+                border: 2px solid rgba(255,255,255,0.06);
+                cursor: pointer;
+                transition: border 0.2s, transform 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            item.addEventListener('mouseenter', function() {
+                this.style.border = '2px solid rgba(255,255,255,0.2)';
+                this.style.transform = 'scale(1.02)';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.border = '2px solid rgba(255,255,255,0.06)';
+                this.style.transform = 'scale(1)';
+            });
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var idx = parseInt(this.dataset.photoIndex);
+                openPhotoSettings(index, idx);
+            });
 
+            var img = document.createElement('img');
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:none;';
+            img.alt = '照片 ' + (i+1);
+            item.appendChild(img);
+
+            var placeholder = document.createElement('div');
+            placeholder.className = 'beauty-photo-placeholder';
+            placeholder.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                color: rgba(255,255,255,0.2);
+                font-size: 12px;
+                gap: 2px;
+                pointer-events: none;
+            `;
+            placeholder.innerHTML = '<span style="font-size:24px;line-height:1;">+</span><span style="font-size:9px;opacity:0.5;">点击设置</span>';
+            item.appendChild(placeholder);
+
+            grid.appendChild(item);
+        }
+
+        card.appendChild(grid);
         page.appendChild(card);
-        updateBeautyPage(index);
+
+        // 强制立即更新
+        setTimeout(function() {
+            updateBeautyPage(index);
+        }, 50);
 
         return page;
     }
 
     // =============================================
-    // 指示器
+    // 单独设置某张照片
+    // =============================================
+    function openPhotoSettings(pageIndex, photoIndex) {
+        var old = document.getElementById('photo-settings-modal');
+        if (old) old.remove();
+
+        var pageData = config.pages[pageIndex];
+        var photo = pageData.photos[photoIndex] || { url: '' };
+
+        var wrap = document.createElement('div');
+        wrap.id = 'photo-settings-modal';
+        wrap.style.cssText = `
+            position: fixed; inset: 0; z-index: 99998;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        `;
+
+        var inner = document.createElement('div');
+        inner.style.cssText = `
+            background: var(--primary-bg);
+            border-radius: 20px; padding: 24px;
+            width: min(380px, 90vw);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+        `;
+
+        inner.innerHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+                <span style="font-size:18px;font-weight:700;color:var(--text-primary);">📷 设置照片 ${photoIndex+1}</span>
+                <button id="photo-settings-close" style="background:none;border:none;font-size:20px;color:var(--text-secondary);cursor:pointer;">✕</button>
+            </div>
+            <div style="margin-bottom:12px;">
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">当前照片预览</div>
+                <div style="width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;border:1px solid var(--border-color);background:var(--secondary-bg);display:flex;align-items:center;justify-content:center;">
+                    <img id="photo-preview-img" src="${photo.url || ''}" style="width:100%;height:100%;object-fit:cover;display:${photo.url ? 'block' : 'none'};">
+                    <span id="photo-preview-empty" style="color:var(--text-secondary);font-size:13px;${photo.url ? 'display:none;' : ''}">暂无图片</span>
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button id="photo-upload-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:10px;background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">📤 上传图片</button>
+                    <button id="photo-url-btn" style="flex:1;padding:10px;border:1.5px dashed var(--border-color);border-radius:10px;background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">🔗 图片URL</button>
+                    <button id="photo-clear-btn" style="padding:10px 14px;border:1px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:#ff6b6b;font-size:13px;cursor:pointer;font-family:var(--font-family);">清除</button>
+                </div>
+                <input type="file" id="photo-file-input" accept="image/*" style="display:none;">
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button id="photo-cancel" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">取消</button>
+                <button id="photo-save" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">保存</button>
+            </div>
+        `;
+
+        wrap.appendChild(inner);
+        document.body.appendChild(wrap);
+
+        var tempUrl = photo.url || '';
+
+        document.getElementById('photo-settings-close').onclick = function() { wrap.remove(); };
+        document.getElementById('photo-cancel').onclick = function() { wrap.remove(); };
+        wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+
+        function updatePreview(url) {
+            var img = document.getElementById('photo-preview-img');
+            var empty = document.getElementById('photo-preview-empty');
+            if (url) {
+                img.src = url;
+                img.style.display = 'block';
+                if (empty) empty.style.display = 'none';
+                tempUrl = url;
+            } else {
+                img.style.display = 'none';
+                if (empty) empty.style.display = 'block';
+                tempUrl = '';
+            }
+        }
+
+        document.getElementById('photo-upload-btn').onclick = function() {
+            document.getElementById('photo-file-input').click();
+        };
+        document.getElementById('photo-file-input').onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                var data = ev.target.result;
+                updatePreview(data);
+                _notify('图片已加载', 'success', 1000);
+            };
+            reader.readAsDataURL(file);
+            this.value = '';
+        };
+
+        document.getElementById('photo-url-btn').onclick = function() {
+            var url = prompt('请输入图片URL地址：');
+            if (url && url.trim()) {
+                updatePreview(url.trim());
+                _notify('图片已加载', 'success', 1000);
+            }
+        };
+
+        document.getElementById('photo-clear-btn').onclick = function() {
+            if (confirm('确定清除这张照片吗？')) {
+                updatePreview('');
+                _notify('已清除', 'info');
+            }
+        };
+
+        document.getElementById('photo-save').onclick = function() {
+            pageData.photos[photoIndex].url = tempUrl;
+            _saveConfig();
+            updateBeautyPage(pageIndex);
+            wrap.remove();
+            _notify('照片已更新 ✨', 'success');
+        };
+
+        if (photo.url) {
+            updatePreview(photo.url);
+        }
+    }
+
+    // =============================================
+    // 添加指示器
     // =============================================
     function addIndicator(wrapper) {
         var indicator = document.createElement('div');
@@ -632,7 +711,6 @@
             indicator.appendChild(dot);
         }
 
-        // ---- 双击检测 ----
         var lastClickTime = 0;
         indicator.addEventListener('click', function(e) {
             var now = Date.now();
@@ -648,7 +726,6 @@
             }
         });
 
-        // ---- 长按拖动 ----
         function startPress(e) {
             if (!isDraggable) return;
             isPressed = true;
@@ -953,7 +1030,7 @@
     }
 
     // =============================================
-    // 设置面板（增加状态编辑）
+    // 设置面板
     // =============================================
     function openBeautySettings(pageIndex) {
         var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
@@ -1027,18 +1104,6 @@
                 ${pi !== currentPage ? 'display:none;' : ''}
             `;
 
-            var tagsHtml = '';
-            var tags = pageData.tags || [];
-            tags.forEach(function(tag, idx) {
-                tagsHtml += `
-                    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                        <input class="beauty-tag-key" data-page="${pi}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                        <input class="beauty-tag-value" data-page="${pi}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                        <button class="beauty-tag-remove" data-page="${pi}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
-                    </div>
-                `;
-            });
-
             section.innerHTML = `
                 <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px;">${pageOptions[pi]}</div>
                 <div style="margin-bottom:10px;">
@@ -1070,7 +1135,7 @@
                     <input class="beauty-title-input" data-page="${pi}" type="text" value="${_esc(pageData.title || '未定义')}" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:var(--font-family);">
                 </div>
                 <div style="margin-bottom:8px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">状态标签（显示在名字旁）</label>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">状态标签</label>
                     <input class="beauty-status-input" data-page="${pi}" type="text" value="${_esc(pageData.status || '')}" placeholder="如：晴天" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:13px;box-sizing:border-box;font-family:var(--font-family);">
                 </div>
                 <div style="margin-bottom:8px;">
@@ -1093,7 +1158,7 @@
                 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
                     <div style="flex:1;min-width:80px;">
                         <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">副标题颜色</label>
-                        <input class="beauty-color-input" data-page="${pi}" data-key="subtitleColor" type="color" value="${pageData.subtitleColor || 'rgba(255,255,255,0.7)'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
+                        <input class="beauty-color-input" data-page="${pi}" data-key="subtitleColor" type="color" value="${pageData.subtitleColor || '#b3b3b3'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
                     </div>
                     <div style="flex:1;min-width:80px;">
                         <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">副标题大小</label>
@@ -1104,23 +1169,12 @@
                     </div>
                 </div>
                 <div style="margin-bottom:8px;">
-                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">标签列表（空值=居中显示）</label>
-                    <div id="beauty-tags-container-${pi}" style="display:flex;flex-direction:column;gap:2px;">
-                        ${tagsHtml}
-                    </div>
-                    <button class="beauty-tag-add" data-page="${pi}" style="margin-top:6px;padding:6px 12px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">+ 添加标签</button>
-                </div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                    <div style="flex:1;min-width:80px;">
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">标签颜色</label>
-                        <input class="beauty-color-input" data-page="${pi}" data-key="tagColor" type="color" value="${pageData.tagColor || 'rgba(255,255,255,0.85)'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
-                    </div>
-                    <div style="flex:1;min-width:80px;">
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">标签大小</label>
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <input class="beauty-size-input" data-page="${pi}" data-key="tagSize" type="range" min="10" max="20" value="${pageData.tagSize || 16}" style="flex:1;">
-                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.tagSize || 16}px</span>
-                        </div>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">四张照片</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <button class="beauty-photo-set" data-page="${pi}" data-photo="0" style="padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;font-family:var(--font-family);">📷 照片1 ${pageData.photos && pageData.photos[0] && pageData.photos[0].url ? '✅' : ''}</button>
+                        <button class="beauty-photo-set" data-page="${pi}" data-photo="1" style="padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;font-family:var(--font-family);">📷 照片2 ${pageData.photos && pageData.photos[1] && pageData.photos[1].url ? '✅' : ''}</button>
+                        <button class="beauty-photo-set" data-page="${pi}" data-photo="2" style="padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;font-family:var(--font-family);">📷 照片3 ${pageData.photos && pageData.photos[2] && pageData.photos[2].url ? '✅' : ''}</button>
+                        <button class="beauty-photo-set" data-page="${pi}" data-photo="3" style="padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;font-family:var(--font-family);">📷 照片4 ${pageData.photos && pageData.photos[3] && pageData.photos[3].url ? '✅' : ''}</button>
                     </div>
                 </div>
             `;
@@ -1332,90 +1386,14 @@
             };
         });
 
-        // 标签
-        document.querySelectorAll('.beauty-tag-add').forEach(function(btn) {
+        // 照片设置
+        document.querySelectorAll('.beauty-photo-set').forEach(function(btn) {
             btn.onclick = function() {
                 var page = parseInt(this.dataset.page);
-                var tags = config.pages[page].tags || [];
-                tags.push({ key: '新标签', value: '' });
-                config.pages[page].tags = tags;
-                _saveConfig();
-                var container = document.getElementById('beauty-tags-container-' + page);
-                if (container) {
-                    var newHtml = '';
-                    tags.forEach(function(tag, idx) {
-                        newHtml += `
-                            <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                                <input class="beauty-tag-key" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容（留空则居中）" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                <button class="beauty-tag-remove" data-page="${page}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
-                            </div>
-                        `;
-                    });
-                    container.innerHTML = newHtml;
-                    bindTagEvents();
-                }
-                updateBeautyPage(page);
-                _notify('标签已添加', 'success', 1000);
+                var photo = parseInt(this.dataset.photo);
+                openPhotoSettings(page, photo);
             };
         });
-
-        function bindTagEvents() {
-            document.querySelectorAll('.beauty-tag-key').forEach(function(input) {
-                input.onchange = function() {
-                    var page = parseInt(this.dataset.page);
-                    var idx = parseInt(this.dataset.idx);
-                    var tags = config.pages[page].tags || [];
-                    if (tags[idx]) {
-                        tags[idx].key = this.value.trim() || '标签';
-                        _saveConfig();
-                        updateBeautyPage(page);
-                    }
-                };
-            });
-            document.querySelectorAll('.beauty-tag-value').forEach(function(input) {
-                input.onchange = function() {
-                    var page = parseInt(this.dataset.page);
-                    var idx = parseInt(this.dataset.idx);
-                    var tags = config.pages[page].tags || [];
-                    if (tags[idx]) {
-                        tags[idx].value = this.value.trim();
-                        _saveConfig();
-                        updateBeautyPage(page);
-                    }
-                };
-            });
-            document.querySelectorAll('.beauty-tag-remove').forEach(function(btn) {
-                btn.onclick = function() {
-                    var page = parseInt(this.dataset.page);
-                    var idx = parseInt(this.dataset.idx);
-                    var tags = config.pages[page].tags || [];
-                    if (idx >= 0 && idx < tags.length) {
-                        tags.splice(idx, 1);
-                        config.pages[page].tags = tags;
-                        _saveConfig();
-                        var container = document.getElementById('beauty-tags-container-' + page);
-                        if (container) {
-                            var newHtml = '';
-                            tags.forEach(function(tag, i) {
-                                newHtml += `
-                                    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                                        <input class="beauty-tag-key" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                        <input class="beauty-tag-value" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.value)}" placeholder="内容（留空则居中）" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
-                                        <button class="beauty-tag-remove" data-page="${page}" data-idx="${i}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
-                                    </div>
-                                `;
-                            });
-                            container.innerHTML = newHtml;
-                            bindTagEvents();
-                        }
-                        updateBeautyPage(page);
-                        _notify('标签已删除', 'info');
-                    }
-                };
-            });
-        }
-        bindTagEvents();
     }
 
     function saveAllSettings() {
@@ -1473,5 +1451,5 @@
 
     init();
 
-    console.log('[美化页面] 模块已加载（图1风格布局）');
+    console.log('[美化页面] 模块已加载（拍立得照片墙）');
 })();
