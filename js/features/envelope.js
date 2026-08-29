@@ -1,10 +1,22 @@
-let envelopeData = { outbox: [], inbox: [] };
-let currentEnvTab = 'outbox';
-let editingEnvId = null;
-let editingEnvSection = null;
+// =============================================
+// 信封投递 + 时空来信功能
+// =============================================
+
+var envelopeData = { outbox: [], inbox: [] };
+var currentEnvTab = 'outbox';
+var editingEnvId = null;
+var editingEnvSection = null;
 
 var TIMEMAIL_KEY = 'timemail_data';
 var TIMEMAIL_ENABLED_KEY = 'timemail_enabled';
+
+// =============================================
+// 工具函数
+// =============================================
+
+function _escHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 function _getTimemailData() {
     try {
@@ -200,7 +212,6 @@ function deleteTimemail(event, id) {
     updateTimemailBadge();
     if (typeof showNotification === 'function') showNotification('已删除', 'success');
 }
-window.deleteTimemail = deleteTimemail;
 
 function updateTimemailBadge() {
     var data = _getTimemailData();
@@ -216,7 +227,7 @@ function updateTimemailBadge() {
     }
 }
 
-window.viewTimemail = function(id) {
+function viewTimemail(id) {
     var data = _getTimemailData();
     var letter = null;
     for (var i = 0; i < data.letters.length; i++) {
@@ -290,9 +301,9 @@ window.viewTimemail = function(id) {
         }
     };
     wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
-};
+}
 
-window.toggleTimemailAuto = function() {
+function toggleTimemailAuto() {
     var current = localStorage.getItem(TIMEMAIL_ENABLED_KEY) === 'true';
     var next = !current;
     localStorage.setItem(TIMEMAIL_ENABLED_KEY, String(next));
@@ -310,29 +321,33 @@ window.toggleTimemailAuto = function() {
         switchEl.style.background = next ? 'var(--accent-color)' : 'var(--border-color)';
     }
     return next;
-};
-
-window.renderTimemailList = renderTimemailList;
-window.updateTimemailBadge = updateTimemailBadge;
-
-function _escHtml(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function loadEnvelopeData() {
+// =============================================
+// 原信封投递代码
+// =============================================
+
+function getStorageKey(key) {
+    return 'envelope_' + key;
+}
+
+function loadEnvelopeData() {
     try {
-        var saved = await localforage.getItem(getStorageKey('envelopeData'));
-        if (saved) envelopeData = saved;
-        var oldPending = await localforage.getItem(getStorageKey('pending_envelope'));
+        var saved = localStorage.getItem(getStorageKey('envelopeData'));
+        if (saved) {
+            envelopeData = JSON.parse(saved);
+        }
+        var oldPending = localStorage.getItem(getStorageKey('pending_envelope'));
         if (oldPending && envelopeData.outbox.length === 0) {
+            var pending = JSON.parse(oldPending);
             envelopeData.outbox.push({
                 id: 'legacy_' + Date.now(),
                 content: '（历史寄出的信件）',
-                sentTime: oldPending.sentTime,
-                replyTime: oldPending.replyTime,
+                sentTime: pending.sentTime,
+                replyTime: pending.replyTime,
                 status: 'pending'
             });
-            await localforage.removeItem(getStorageKey('pending_envelope'));
+            localStorage.removeItem(getStorageKey('pending_envelope'));
             saveEnvelopeData();
         }
     } catch(e) {
@@ -342,14 +357,14 @@ async function loadEnvelopeData() {
 
 function saveEnvelopeData() {
     try {
-        localforage.setItem(getStorageKey('envelopeData'), envelopeData);
+        localStorage.setItem(getStorageKey('envelopeData'), JSON.stringify(envelopeData));
     } catch(e) {
         console.warn('保存信封数据失败', e);
     }
 }
 
-async function checkEnvelopeStatus() {
-    await loadEnvelopeData();
+function checkEnvelopeStatus() {
+    loadEnvelopeData();
     var now = Date.now();
     var changed = false;
     var newReplyLetter = null;
@@ -400,7 +415,7 @@ var APPEARANCE_PANEL_TITLES = {
     'bubble-css': '气泡 & CSS'
 };
 
-window.showAppearancePanel = function(panel) {
+function showAppearancePanel(panel) {
     var panelMap = {
         'font-bg': ['font', 'background'],
         'bubble-css': ['bubble', 'css']
@@ -427,9 +442,9 @@ window.showAppearancePanel = function(panel) {
             if (typeof window.updateBubblePreviewFn === 'function') window.updateBubblePreviewFn();
         }, 50);
     }
-};
+}
 
-window.hideAppearancePanel = function() {
+function hideAppearancePanel() {
     document.getElementById('appearance-nav-grid').style.display = 'grid';
     document.getElementById('appearance-panel-container').style.display = 'none';
     document.querySelectorAll('.appearance-sub-panel').forEach(function(p) { p.style.display = 'none'; });
@@ -437,9 +452,9 @@ window.hideAppearancePanel = function() {
     if (unBtn) unBtn.style.display = 'flex';
     var galleryBanner = document.getElementById('gallery-banner-entry');
     if (galleryBanner) galleryBanner.style.display = 'flex';
-};
+}
 
-window.openEnvelopeAndViewReply = function(replyId) {
+function openEnvelopeAndViewReply(replyId) {
     var popup = document.getElementById('envelope-reply-popup');
     if (popup) popup.remove();
     var envelopeModal = document.getElementById('envelope-modal');
@@ -448,7 +463,7 @@ window.openEnvelopeAndViewReply = function(replyId) {
         switchEnvTab('inbox');
         viewEnvLetter('inbox', replyId);
     }, 200);
-};
+}
 
 function generateEnvelopeReplyText() {
     var sourcePool = [].concat(customReplies);
@@ -470,7 +485,7 @@ function _createEmptyHTML(iconSvg, title, desc) {
         '</div>';
 }
 
-window.switchEnvTab = function(tab) {
+function switchEnvTab(tab) {
     currentEnvTab = tab;
     var outboxBtn = document.getElementById('env-tab-outbox');
     var inboxBtn = document.getElementById('env-tab-inbox');
@@ -510,7 +525,7 @@ window.switchEnvTab = function(tab) {
     } else {
         renderEnvelopeLists();
     }
-};
+}
 
 function renderEnvelopeLists() {
     renderOutboxList();
@@ -583,7 +598,7 @@ function renderInboxList() {
     list.innerHTML = html;
 }
 
-window.viewEnvLetter = function(section, id) {
+function viewEnvLetter(section, id) {
     var letters = section === 'outbox' ? envelopeData.outbox : envelopeData.inbox;
     var letter = null;
     for (var i = 0; i < letters.length; i++) {
@@ -654,9 +669,9 @@ window.viewEnvLetter = function(section, id) {
         }
     }
     if (typeof showModal === 'function') showModal(document.getElementById('envelope-view-modal'));
-};
+}
 
-window.toggleEnvEdit = function() {
+function toggleEnvEdit() {
     var contentEl = document.getElementById('env-view-content');
     var editEl = document.getElementById('env-view-edit');
     var editBtn = document.getElementById('env-view-edit-btn');
@@ -673,9 +688,9 @@ window.toggleEnvEdit = function() {
         editBtn.textContent = '取消';
         saveBtn.style.display = 'inline-flex';
     }
-};
+}
 
-window.saveEnvEdit = function() {
+function saveEnvEdit() {
     var newContent = document.getElementById('env-edit-input').value.trim();
     if (!newContent) {
         if (typeof showNotification === 'function') showNotification('内容不能为空', 'warning');
@@ -694,13 +709,13 @@ window.saveEnvEdit = function() {
         if (typeof showNotification === 'function') showNotification('已保存修改', 'success');
         toggleEnvEdit();
     }
-};
+}
 
-window.closeEnvViewModal = function() {
+function closeEnvViewModal() {
     if (typeof hideModal === 'function') hideModal(document.getElementById('envelope-view-modal'));
-};
+}
 
-window.deleteEnvLetter = function(event, section, id) {
+function deleteEnvLetter(event, section, id) {
     event.stopPropagation();
     if (!confirm('确定要删除这封信吗？')) return;
     if (section === 'outbox') {
@@ -711,9 +726,9 @@ window.deleteEnvLetter = function(event, section, id) {
     saveEnvelopeData();
     renderEnvelopeLists();
     if (typeof showNotification === 'function') showNotification('已删除', 'success');
-};
+}
 
-window.openNewEnvelopeForm = function() {
+function openNewEnvelopeForm() {
     document.getElementById('env-outbox-section').style.display = 'none';
     document.getElementById('env-inbox-section').style.display = 'none';
     document.getElementById('env-main-close-btn').style.display = 'none';
@@ -721,9 +736,9 @@ window.openNewEnvelopeForm = function() {
     document.getElementById('envelope-input').value = '';
     document.getElementById('env-send-to-chat').checked = false;
     document.getElementById('env-compose-form').style.display = 'block';
-};
+}
 
-window.cancelEnvelopeCompose = function() {
+function cancelEnvelopeCompose() {
     document.getElementById('env-compose-form').style.display = 'none';
     document.getElementById('env-main-close-btn').style.display = 'flex';
     if (currentEnvTab === 'outbox') {
@@ -731,7 +746,7 @@ window.cancelEnvelopeCompose = function() {
     } else {
         document.getElementById('env-inbox-section').style.display = 'block';
     }
-};
+}
 
 function handleSendEnvelope() {
     var text = document.getElementById('envelope-input').value.trim();
@@ -763,10 +778,9 @@ function handleSendEnvelope() {
     if (typeof showNotification === 'function') showNotification('信件已寄出，预计 ' + Math.floor(randomHours) + ' 小时后收到回信 ✉️', 'success');
 }
 
-window.loadEnvelopeData = loadEnvelopeData;
-window.saveEnvelopeData = saveEnvelopeData;
-window.checkEnvelopeStatus = checkEnvelopeStatus;
-window.handleSendEnvelope = handleSendEnvelope;
+// =============================================
+// 注入时空来信 HTML
+// =============================================
 
 function _injectTimemailHTML() {
     var oldTab = document.getElementById('env-tab-timemail');
@@ -857,6 +871,38 @@ function _injectTimemailToggle() {
         '</div>';
     autoSendToggle.parentNode.insertBefore(timemailRow, autoSendToggle.nextSibling);
 }
+
+// =============================================
+// 暴露到全局
+// =============================================
+
+window.loadEnvelopeData = loadEnvelopeData;
+window.saveEnvelopeData = saveEnvelopeData;
+window.checkEnvelopeStatus = checkEnvelopeStatus;
+window.handleSendEnvelope = handleSendEnvelope;
+window.switchEnvTab = switchEnvTab;
+window.renderEnvelopeLists = renderEnvelopeLists;
+window.renderOutboxList = renderOutboxList;
+window.renderInboxList = renderInboxList;
+window.viewEnvLetter = viewEnvLetter;
+window.deleteEnvLetter = deleteEnvLetter;
+window.openNewEnvelopeForm = openNewEnvelopeForm;
+window.cancelEnvelopeCompose = cancelEnvelopeCompose;
+window.toggleEnvEdit = toggleEnvEdit;
+window.saveEnvEdit = saveEnvEdit;
+window.closeEnvViewModal = closeEnvViewModal;
+window.openEnvelopeAndViewReply = openEnvelopeAndViewReply;
+window.showAppearancePanel = showAppearancePanel;
+window.hideAppearancePanel = hideAppearancePanel;
+window.viewTimemail = viewTimemail;
+window.toggleTimemailAuto = toggleTimemailAuto;
+window.deleteTimemail = deleteTimemail;
+window.renderTimemailList = renderTimemailList;
+window.updateTimemailBadge = updateTimemailBadge;
+
+// =============================================
+// 页面初始化
+// =============================================
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
