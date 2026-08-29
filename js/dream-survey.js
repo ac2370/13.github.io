@@ -6,10 +6,11 @@
     // 1. 配置与常量
     // =============================================
     const DAILY_KEY = 'dreamSurvey_daily';
-    const CUSTOM_KEY = 'dreamSurvey_custom_list'; // 仍用于每日随机问题
+    const CUSTOM_KEY = 'dreamSurvey_custom_list';
     const QUESTIONNAIRES_KEY = 'dreamSurvey_questionnaires';
+    const HISTORY_KEY = 'dreamSurvey_history';
 
-    // 内置恋爱向每日问题池（保留）
+    // 内置恋爱向每日问题池
     const DEFAULT_QUESTIONS = [
         { q: '你最喜欢我身上哪个小习惯？', type: 'choice', options: ['笑容', '声音', '走路姿势', '说话语气'] },
         { q: '我们第一次约会时，你心里在想什么？', type: 'choice', options: ['好紧张', 'TA好可爱', '时间过快点', '想牵TA的手'] },
@@ -49,14 +50,21 @@
     function _setQuestionnaires(list) {
         localStorage.setItem(QUESTIONNAIRES_KEY, JSON.stringify(list));
     }
+    function _getHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+    }
+    function _addHistory(entry) {
+        const h = _getHistory();
+        h.push(entry);
+        if (h.length > 100) h.shift();
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+    }
 
-    // 获取所有问题（用于每日随机）
     function _getAllQuestions() {
         const customs = _getCustomList();
         return [...DEFAULT_QUESTIONS, ...customs];
     }
 
-    // 获取字卡库
     function _getReplyCards() {
         let cards = [];
         if (window.customReplies && Array.isArray(window.customReplies)) {
@@ -121,31 +129,136 @@
     }
 
     // =============================================
-    // 3. 每日随机弹出（保留）
+    // 3. 每日随机弹出（概率 50%）
     // =============================================
     function _checkDailyPopup() {
         const today = new Date().toDateString();
         const record = _getDailyRecord();
-        if (record.lastDate === today) return;
-        const PROBABILITY = 0.4;
-        if (Math.random() > PROBABILITY) return;
+        
+        // 如果今天已经弹过，直接返回
+        if (record.lastDate === today) {
+            console.log('[梦向问卷] 今天已弹出过，跳过');
+            return;
+        }
+        
+        // 🔥 修改：概率改为 50%
+        const PROBABILITY = 0.5;
+        if (Math.random() > PROBABILITY) {
+            console.log('[梦向问卷] 随机概率未命中（50%），今日不弹出');
+            return;
+        }
+        
         const allQ = _getAllQuestions();
-        if (allQ.length === 0) return;
+        if (allQ.length === 0) {
+            console.log('[梦向问卷] 没有问题池');
+            return;
+        }
+        
         const question = _randomPick(allQ);
         record.lastDate = today;
         _setDailyRecord(record);
+        
+        console.log('[梦向问卷] 触发每日弹出:', question.q);
         _showSurveyModal(question, true);
     }
 
-    // 答题弹窗（保留，用于每日随机）
+    // =============================================
+    // 4. 答题弹窗（每日随机用）
+    // =============================================
     function _showSurveyModal(question, isDaily = false) {
-        // ... 此部分与之前相同，略（为了节省篇幅，我们在最终代码中保留原实现）
-        // 因为本文件会全部提供，此处省略，实际代码包含完整函数。
-        // 注意：为了保持完整性，下面我们将包含所有函数。
+        const old = document.getElementById('dream-survey-popup');
+        if (old) old.remove();
+
+        const wrap = document.createElement('div');
+        wrap.id = 'dream-survey-popup';
+        wrap.style.cssText = `
+            position:fixed;inset:0;z-index:10050;
+            display:flex;align-items:center;justify-content:center;
+            background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            animation:fadeIn 0.3s ease;
+        `;
+
+        const inner = document.createElement('div');
+        inner.style.cssText = `
+            background:var(--primary-bg);
+            border-radius:24px;padding:28px 24px;
+            width:min(420px, 90vw);
+            max-height:80vh;
+            overflow-y:auto;
+            box-shadow:0 24px 64px rgba(0,0,0,0.3);
+            border:1px solid var(--border-color);
+        `;
+
+        const isChoice = question.type === 'choice';
+        const options = question.options || [];
+
+        inner.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <span style="font-size:16px;font-weight:600;color:var(--text-secondary);">${isDaily ? '🌸 今日梦向问卷' : '📋 问卷'}</span>
+                <button id="survey-popup-close" style="background:none;border:none;font-size:20px;color:var(--text-secondary);cursor:pointer;">✕</button>
+            </div>
+            <div style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:16px;line-height:1.6;">${_esc(question.q)}</div>
+            <div id="survey-answer-area">
+                ${isChoice ? options.map((opt, idx) => `
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:var(--secondary-bg);border-radius:12px;border:1.5px solid transparent;cursor:pointer;transition:all 0.15s;">
+                        <input type="radio" name="survey_answer" value="${_esc(opt)}" style="accent-color:var(--accent-color);width:18px;height:18px;cursor:pointer;">
+                        <span style="font-size:15px;color:var(--text-primary);">${_esc(opt)}</span>
+                    </label>
+                `).join('') : `
+                    <textarea id="survey-text-input" rows="4" placeholder="写下你的回答..." style="width:100%;padding:12px;border:1.5px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>
+                `}
+            </div>
+            <div style="display:flex;gap:10px;margin-top:18px;">
+                <button id="survey-skip" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;">跳过</button>
+                <button id="survey-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">回答</button>
+            </div>
+        `;
+
+        wrap.appendChild(inner);
+        document.body.appendChild(wrap);
+
+        const close = () => wrap.remove();
+        document.getElementById('survey-popup-close').onclick = close;
+        document.getElementById('survey-skip').onclick = close;
+        wrap.onclick = (e) => { if (e.target === wrap) close(); };
+
+        document.getElementById('survey-submit').onclick = function() {
+            let answer = '';
+            if (isChoice) {
+                const selected = document.querySelector('input[name="survey_answer"]:checked');
+                if (!selected) { _notify('请选择一个选项', 'warning'); return; }
+                answer = selected.value;
+            } else {
+                const input = document.getElementById('survey-text-input');
+                if (!input || !input.value.trim()) { _notify('请写下你的回答', 'warning'); return; }
+                answer = input.value.trim();
+            }
+
+            _addHistory({
+                date: new Date().toISOString(),
+                question: question.q,
+                answer: answer,
+                isDaily: isDaily
+            });
+
+            const pName = _getPartnerName();
+            const myName = _getMyName();
+            _sendAsMessage(`📝 问卷回答：「${question.q}」\n→ ${myName}：${answer}`, false);
+
+            const cards = _getReplyCards();
+            const replyMsg = _randomPick(cards) + '～';
+            setTimeout(() => {
+                _sendAsMessage(`💬 ${pName}：${replyMsg}`, false);
+            }, 1500 + Math.random() * 3000);
+
+            close();
+            _notify('回答已发送 ✨', 'success', 2000);
+        };
     }
 
     // =============================================
-    // 4. 主面板（图5风格）
+    // 5. 主面板
     // =============================================
     window.openDreamSurveyManager = function() {
         const old = document.getElementById('dream-manager-modal');
@@ -174,7 +287,6 @@
             flex-direction:column;
         `;
 
-        // 标题（小熊图标）
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
         header.innerHTML = `
@@ -183,7 +295,6 @@
         `;
         inner.appendChild(header);
 
-        // 操作按钮区域
         const actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex;gap:10px;margin-bottom:16px;';
         const btnPool = document.createElement('button');
@@ -204,13 +315,11 @@
         actionRow.appendChild(btnCreate);
         inner.appendChild(actionRow);
 
-        // 问卷列表标题
         const listTitle = document.createElement('div');
         listTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;';
         listTitle.textContent = '我的问卷';
         inner.appendChild(listTitle);
 
-        // 列表容器
         const listContainer = document.createElement('div');
         listContainer.id = 'dream-manager-list';
         listContainer.style.cssText = 'flex:1;overflow-y:auto;max-height:40vh;';
@@ -219,7 +328,6 @@
 
         inner.appendChild(listContainer);
 
-        // 底部关闭按钮
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '关闭';
         closeBtn.style.cssText = 'margin-top:12px;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;width:100%;';
@@ -235,7 +343,9 @@
         document.getElementById('dream-manager-close').addEventListener('click', () => wrap.remove());
     };
 
-    // 渲染问卷列表
+    // =============================================
+    // 6. 渲染问卷列表
+    // =============================================
     function renderQuestionnaireList(container) {
         const list = _getQuestionnaires();
         if (list.length === 0) {
@@ -252,9 +362,13 @@
         list.forEach((q, index) => {
             const totalQuestions = q.questions ? q.questions.length : 0;
             const status = q.replied ? '✅ 已回复' : (q.sent ? '⏳ 已发送' : '📄 未发送');
-            const typeLabel = q.questions && q.questions.some(t => t.type === 'choice') ? '选择题' : '填空题';
-            if (q.questions && q.questions.some(t => t.type === 'choice') && q.questions.some(t => t.type === 'text')) {
-                typeLabel = '混合';
+            let typeLabel = '填空题';
+            if (q.questions) {
+                const hasChoice = q.questions.some(t => t.type === 'choice');
+                const hasText = q.questions.some(t => t.type === 'text');
+                if (hasChoice && hasText) typeLabel = '混合';
+                else if (hasChoice) typeLabel = '选择题';
+                else typeLabel = '填空题';
             }
             const replyTimeLabel = q.replyTime === 'immediate' ? '立即回复' : '随机时间';
             html += `
@@ -281,7 +395,6 @@
         html += '</div>';
         container.innerHTML = html;
 
-        // 绑定事件
         container.querySelectorAll('.q-send-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -304,7 +417,6 @@
                     let list = _getQuestionnaires();
                     list = list.filter(q => q.id !== id);
                     _setQuestionnaires(list);
-                    // 刷新列表
                     const container = document.getElementById('dream-manager-list');
                     if (container) renderQuestionnaireList(container);
                     _notify('已删除', 'info');
@@ -314,7 +426,7 @@
     }
 
     // =============================================
-    // 5. 添加问卷池（单题编辑器，图1）
+    // 7. 添加问卷池（单题编辑器）
     // =============================================
     function openSingleQuestionEditor() {
         const old = document.getElementById('dream-single-editor');
@@ -389,7 +501,6 @@
                 options = raw.split(',').map(s => s.trim()).filter(Boolean);
                 if (options.length < 2) { _notify('选择题至少需要2个选项', 'warning'); return; }
             }
-            // 创建单题问卷
             const questionnaire = {
                 id: _generateId(),
                 title: q.length > 20 ? q.slice(0, 20) + '...' : q,
@@ -399,7 +510,7 @@
                     type: type,
                     options: options
                 }],
-                replyTime: 'immediate', // 默认
+                replyTime: 'immediate',
                 created: new Date().toISOString(),
                 sent: false,
                 replied: false,
@@ -410,7 +521,6 @@
             _setQuestionnaires(list);
             close();
             _notify('✅ 已添加到问卷池', 'success');
-            // 如果主面板打开，刷新列表
             const manager = document.getElementById('dream-manager-modal');
             if (manager) {
                 const container = document.getElementById('dream-manager-list');
@@ -420,7 +530,7 @@
     }
 
     // =============================================
-    // 6. 创建/编辑问卷（多题编辑器，图2/3/4）
+    // 8. 创建/编辑问卷（多题编辑器）
     // =============================================
     function openQuestionnaireEditor(existingId) {
         const old = document.getElementById('dream-editor-modal');
@@ -452,7 +562,6 @@
             border:1px solid var(--border-color);
         `;
 
-        // 标题
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
         header.innerHTML = `
@@ -461,7 +570,6 @@
         `;
         inner.appendChild(header);
 
-        // 问卷标题
         const titleGroup = document.createElement('div');
         titleGroup.style.cssText = 'margin-bottom:14px;';
         titleGroup.innerHTML = `
@@ -470,7 +578,6 @@
         `;
         inner.appendChild(titleGroup);
 
-        // 回复时间选择
         const timeGroup = document.createElement('div');
         timeGroup.style.cssText = 'margin-bottom:16px;';
         timeGroup.innerHTML = `
@@ -483,12 +590,10 @@
         `;
         inner.appendChild(timeGroup);
 
-        // 题目列表
         const questionList = document.createElement('div');
         questionList.id = 'editor-question-list';
         questionList.style.cssText = 'margin-bottom:12px;max-height:300px;overflow-y:auto;';
 
-        // 存储题目数据
         let questions = editingData ? JSON.parse(JSON.stringify(editingData.questions)) : [];
 
         function renderQuestions() {
@@ -518,7 +623,6 @@
                 `;
                 questionList.appendChild(div);
             });
-            // 绑定删除事件
             questionList.querySelectorAll('.q-remove-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const idx = parseInt(this.dataset.index);
@@ -531,24 +635,18 @@
 
         inner.appendChild(questionList);
 
-        // 添加题目按钮
         const addBtn = document.createElement('button');
         addBtn.textContent = '+ 添加题目';
         addBtn.style.cssText = 'width:100%;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;margin-bottom:16px;font-family:var(--font-family);';
         addBtn.onclick = function() {
-            // 弹出添加题目的对话框（简单内联）
-            const idx = questions.length;
             const newQ = { id: _generateId(), text: '新题目', type: 'choice', options: ['选项1', '选项2'] };
+            const idx = questions.length;
             questions.push(newQ);
-            // 弹出编辑行（为了简单，我们直接弹出一个 prompt 让用户编辑题目文本和类型，但为了更好的体验，我们用模态框）
-            // 这里为了简化，我们直接弹出一个简单编辑框（可接受）
-            // 但更好的方式是在当前位置展开编辑，我们采用弹窗方式：
-            openQuestionEditor(newQ, idx, function(updated) {
+            openQuestionEditorInline(newQ, idx, function(updated) {
                 if (updated) {
                     questions[idx] = updated;
                     renderQuestions();
                 } else {
-                    // 如果取消，移除
                     questions.pop();
                     renderQuestions();
                 }
@@ -556,7 +654,6 @@
         };
         inner.appendChild(addBtn);
 
-        // 底部按钮
         const btnGroup = document.createElement('div');
         btnGroup.style.cssText = 'display:flex;gap:10px;margin-top:8px;';
         const cancelBtn = document.createElement('button');
@@ -570,20 +667,17 @@
             const title = document.getElementById('editor-title-input').value.trim();
             if (!title) { _notify('请输入问卷标题', 'warning'); return; }
             if (questions.length === 0) { _notify('请至少添加一道题目', 'warning'); return; }
-            // 检查每道题是否完整
             for (let q of questions) {
                 if (!q.text.trim()) { _notify('所有题目内容不能为空', 'warning'); return; }
                 if (q.type === 'choice' && (!q.options || q.options.length < 2)) {
                     _notify('选择题至少需要2个选项', 'warning'); return;
                 }
             }
-            // 获取回复时间
             const timeBtn = document.querySelector('.editor-time-btn.active');
             const replyTime = timeBtn ? timeBtn.dataset.value : 'immediate';
 
             const list = _getQuestionnaires();
             if (editingData) {
-                // 编辑
                 const idx = list.findIndex(q => q.id === editingData.id);
                 if (idx !== -1) {
                     list[idx].title = title;
@@ -593,7 +687,6 @@
                     _notify('问卷已更新', 'success');
                 }
             } else {
-                // 新建
                 const newQ = {
                     id: _generateId(),
                     title: title,
@@ -609,13 +702,11 @@
                 _notify('问卷已保存', 'success');
             }
             wrap.remove();
-            // 刷新主面板列表
             const manager = document.getElementById('dream-manager-modal');
             if (manager) {
                 const container = document.getElementById('dream-manager-list');
                 if (container) renderQuestionnaireList(container);
             } else {
-                // 如果主面板没打开，自动打开
                 window.openDreamSurveyManager();
             }
         };
@@ -629,7 +720,6 @@
         document.getElementById('editor-close').onclick = () => wrap.remove();
         wrap.onclick = (e) => { if (e.target === wrap) wrap.remove(); };
 
-        // 回复时间切换
         timeGroup.querySelectorAll('.editor-time-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 timeGroup.querySelectorAll('.editor-time-btn').forEach(b => {
@@ -655,13 +745,11 @@
             const btn = timeGroup.querySelector(`.editor-time-btn[data-value="${timeVal}"]`);
             if (btn) btn.click();
         } else {
-            // 默认立即
             const defaultBtn = timeGroup.querySelector('.editor-time-btn[data-value="immediate"]');
             if (defaultBtn) defaultBtn.click();
         }
 
-        // 辅助函数：编辑单个题目（弹窗）
-        function openQuestionEditor(q, idx, callback) {
+        function openQuestionEditorInline(q, idx, callback) {
             const old = document.getElementById('q-editor-modal');
             if (old) old.remove();
 
@@ -713,7 +801,7 @@
             document.getElementById('q-editor-close').onclick = closeEditor;
             document.getElementById('q-editor-cancel').onclick = function() {
                 closeEditor();
-                callback(null); // 取消，不更新
+                callback(null);
             };
             wrap2.onclick = (e) => { if (e.target === wrap2) { closeEditor(); callback(null); } };
 
@@ -742,7 +830,7 @@
     }
 
     // =============================================
-    // 7. 发送问卷（模拟对方回复）
+    // 9. 发送问卷
     // =============================================
     function sendQuestionnaire(id) {
         const list = _getQuestionnaires();
@@ -750,36 +838,37 @@
         if (!q) { _notify('问卷不存在', 'error'); return; }
         if (q.sent) { _notify('该问卷已发送', 'info'); return; }
 
-        // 计算延迟时间（毫秒）
         let delayMinutes = 0;
         if (q.replyTime === 'immediate') {
-            delayMinutes = Math.floor(Math.random() * 60) + 1; // 1~60 分钟
+            delayMinutes = Math.floor(Math.random() * 60) + 1;
         } else {
-            delayMinutes = Math.floor(Math.random() * 300) + 1; // 1~300 分钟
+            delayMinutes = Math.floor(Math.random() * 300) + 1;
         }
         const delayMs = delayMinutes * 60 * 1000;
 
-        // 更新状态为已发送
         q.sent = true;
         q.sentAt = new Date().toISOString();
         _setQuestionnaires(list);
 
-        // 在聊天框发送提示
         const pName = _getPartnerName();
         _sendAsMessage(`📋 问卷「${q.title}」已发送，${pName} 会在 ${delayMinutes} 分钟内完成作答`, true);
 
-        // 设置定时器模拟回复
+        const qId = q.id;
         setTimeout(() => {
-            // 生成答案
+            const currentList = _getQuestionnaires();
+            const currentQ = currentList.find(item => item.id === qId);
+            if (!currentQ) {
+                console.warn('[梦向问卷] 问卷已被删除:', qId);
+                return;
+            }
+            
             const answers = {};
-            q.questions.forEach((question, idx) => {
+            currentQ.questions.forEach((question, idx) => {
                 if (question.type === 'choice') {
-                    // 随机选一个选项
                     const options = question.options || [];
                     const chosen = options.length > 0 ? _randomPick(options) : '未选择';
                     answers[question.id] = chosen;
                 } else {
-                    // 填空题：从字卡库随机抽取1~3张拼接
                     const cards = _getReplyCards();
                     const count = Math.min(1 + Math.floor(Math.random() * 3), cards.length);
                     const shuffled = cards.sort(() => Math.random() - 0.5);
@@ -787,16 +876,14 @@
                     answers[question.id] = picked.join('');
                 }
             });
-            // 更新问卷状态
-            const currentList = _getQuestionnaires();
-            const currentQ = currentList.find(item => item.id === id);
-            if (currentQ) {
-                currentQ.replied = true;
-                currentQ.answers = answers;
-                _setQuestionnaires(currentList);
-                // 聊天框通知
-                _sendAsMessage(`✅ ${pName} 已完成问卷「${currentQ.title}」的作答！`, true);
-                // 如果主面板打开，刷新列表
+            
+            const finalList = _getQuestionnaires();
+            const finalQ = finalList.find(item => item.id === qId);
+            if (finalQ) {
+                finalQ.replied = true;
+                finalQ.answers = answers;
+                _setQuestionnaires(finalList);
+                _sendAsMessage(`✅ ${pName} 已完成问卷「${finalQ.title}」的作答！`, true);
                 const manager = document.getElementById('dream-manager-modal');
                 if (manager) {
                     const container = document.getElementById('dream-manager-list');
@@ -807,7 +894,6 @@
         }, delayMs);
 
         _notify(`问卷已发送，对方将在 ${delayMinutes} 分钟内完成作答`, 'success', 3000);
-        // 刷新列表
         const manager = document.getElementById('dream-manager-modal');
         if (manager) {
             const container = document.getElementById('dream-manager-list');
@@ -816,13 +902,19 @@
     }
 
     // =============================================
-    // 8. 查看回复
+    // 10. 查看回复
     // =============================================
     function viewQuestionnaireReply(id) {
         const list = _getQuestionnaires();
         const q = list.find(item => item.id === id);
-        if (!q) { _notify('问卷不存在', 'error'); return; }
-        if (!q.replied || !q.answers) { _notify('该问卷尚未收到回复', 'info'); return; }
+        if (!q) {
+            _notify('问卷不存在或已被删除', 'error');
+            return;
+        }
+        if (!q.replied || !q.answers || Object.keys(q.answers).length === 0) {
+            _notify('该问卷尚未收到回复', 'info');
+            return;
+        }
 
         const modal = document.createElement('div');
         modal.style.cssText = `
@@ -840,6 +932,10 @@
             border:1px solid var(--border-color);
         `;
         let html = `<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><span style="font-size:18px;font-weight:700;">📋 ${_esc(q.title)}</span><button id="reply-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button></div>`;
+        
+        const pName = _getPartnerName();
+        html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">💕 ${pName} 的回答：</div>`;
+        
         q.questions.forEach((question, idx) => {
             const answer = q.answers[question.id] || '未回答';
             html += `
@@ -858,12 +954,23 @@
     }
 
     // =============================================
-    // 9. 初始化：每日弹出
+    // 11. 初始化
     // =============================================
     function _init() {
+        console.log('[梦向问卷] 初始化中...');
         setTimeout(() => {
+            console.log('[梦向问卷] 检查每日弹出（概率 50%）...');
             _checkDailyPopup();
-        }, 2500);
+        }, 3000);
+        
+        setTimeout(() => {
+            console.log('[梦向问卷] 备用检查每日弹出...');
+            const record = _getDailyRecord();
+            const today = new Date().toDateString();
+            if (record.lastDate !== today) {
+                _checkDailyPopup();
+            }
+        }, 5000);
     }
 
     if (document.readyState === 'loading') {
@@ -872,14 +979,16 @@
         _init();
     }
 
-    // 暴露一些方法供调试
+    // =============================================
+    // 12. 暴露全局方法
+    // =============================================
     window.forceCheckDailySurvey = _checkDailyPopup;
     window.viewDreamHistory = function() {
         try {
-            const h = JSON.parse(localStorage.getItem('dreamSurvey_history') || '[]');
+            const h = _getHistory();
             if (h.length === 0) { _notify('暂无问卷回答记录', 'info'); return; }
-            const last = h.slice(-5).reverse();
-            let msg = '📜 最近5条问卷记录：\n';
+            const last = h.slice(-10).reverse();
+            let msg = '📜 最近10条问卷记录：\n';
             last.forEach(item => {
                 const date = new Date(item.date).toLocaleString();
                 msg += `\n[${date}] ${item.question}\n→ ${item.answer}\n`;
@@ -887,6 +996,20 @@
             alert(msg);
         } catch(e) { alert('读取记录失败'); }
     };
+    window.partnerAnswerSurvey = function(questionnaireId, answers) {
+        const list = _getQuestionnaires();
+        const q = list.find(item => item.id === questionnaireId);
+        if (!q) { _notify('问卷不存在', 'error'); return; }
+        q.replied = true;
+        q.answers = answers || {};
+        _setQuestionnaires(list);
+        _notify('已手动标记问卷为已回复', 'success');
+        const manager = document.getElementById('dream-manager-modal');
+        if (manager) {
+            const container = document.getElementById('dream-manager-list');
+            if (container) renderQuestionnaireList(container);
+        }
+    };
 
-    console.log('[梦向问卷] 完整系统已加载。');
+    console.log('[梦向问卷] 完整系统已加载（概率 50%）。');
 })();
