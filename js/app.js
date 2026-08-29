@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(hideWelcomeScreen, 3500);
     }
 });
-var stickerInput  stickerInput = document.getElementById('sticker-file-input');
+const stickerInput  stickerInput = document.getElementById('sticker-file-input');
             if (stickerInput) {
                 stickerInput.addEventListener('change', async (e) => {
                     const files = Array.from(e.target.files);
