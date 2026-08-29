@@ -92,7 +92,9 @@
         return (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
     }
 
-    function _notify(msg, type='info', duration=2000) {
+    function _notify(msg, type, duration) {
+        type = type || 'info';
+        duration = duration || 2000;
         if (typeof showNotification === 'function') {
             showNotification(msg, type, duration);
         } else {
@@ -108,7 +110,8 @@
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    function _sendAsMessage(text, isSystem = false) {
+    function _sendAsMessage(text, isSystem) {
+        isSystem = isSystem || false;
         if (typeof addMessage === 'function') {
             addMessage({
                 id: Date.now() + Math.random(),
@@ -135,13 +138,11 @@
         const today = new Date().toDateString();
         const record = _getDailyRecord();
         
-        // 如果今天已经弹过，直接返回
         if (record.lastDate === today) {
             console.log('[梦向问卷] 今天已弹出过，跳过');
             return;
         }
         
-        // 🔥 触发概率 50%
         const PROBABILITY = 0.5;
         if (Math.random() > PROBABILITY) {
             console.log('[梦向问卷] 随机概率未命中（50%），今日不弹出');
@@ -165,72 +166,39 @@
     // =============================================
     // 4. 答题弹窗（每日随机用）
     // =============================================
-    function _showSurveyModal(question, isDaily = false) {
+    function _showSurveyModal(question, isDaily) {
+        isDaily = isDaily || false;
         const old = document.getElementById('dream-survey-popup');
         if (old) old.remove();
 
         const wrap = document.createElement('div');
         wrap.id = 'dream-survey-popup';
-        wrap.style.cssText = `
-            position:fixed;inset:0;z-index:10050;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
-            -webkit-backdrop-filter:blur(12px);
-            animation:fadeIn 0.3s ease;
-        `;
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
 
         const inner = document.createElement('div');
-        inner.style.cssText = `
-            background:var(--primary-bg);
-            border-radius:24px;padding:28px 24px;
-            width:min(420px, 90vw);
-            max-height:80vh;
-            overflow-y:auto;
-            box-shadow:0 24px 64px rgba(0,0,0,0.3);
-            border:1px solid var(--border-color);
-        `;
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:28px 24px;width:min(420px, 90vw);max-height:80vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
         const isChoice = question.type === 'choice';
         const options = question.options || [];
 
-        inner.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <span style="font-size:16px;font-weight:600;color:var(--text-secondary);">${isDaily ? '🌸 今日梦向问卷' : '📋 问卷'}</span>
-                <button id="survey-popup-close" style="background:none;border:none;font-size:20px;color:var(--text-secondary);cursor:pointer;">✕</button>
-            </div>
-            <div style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:16px;line-height:1.6;">${_esc(question.q)}</div>
-            <div id="survey-answer-area">
-                ${isChoice ? options.map((opt, idx) => `
-                    <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:var(--secondary-bg);border-radius:12px;border:1.5px solid transparent;cursor:pointer;transition:all 0.15s;">
-                        <input type="radio" name="survey_answer" value="${_esc(opt)}" style="accent-color:var(--accent-color);width:18px;height:18px;cursor:pointer;">
-                        <span style="font-size:15px;color:var(--text-primary);">${_esc(opt)}</span>
-                    </label>
-                `).join('') : `
-                    <textarea id="survey-text-input" rows="4" placeholder="写下你的回答..." style="width:100%;padding:12px;border:1.5px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>
-                `}
-            </div>
-            <div style="display:flex;gap:10px;margin-top:18px;">
-                <button id="survey-skip" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;">跳过</button>
-                <button id="survey-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">回答</button>
-            </div>
-        `;
+        inner.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><span style="font-size:16px;font-weight:600;color:var(--text-secondary);">' + (isDaily ? '🌸 今日梦向问卷' : '📋 问卷') + '</span><button id="survey-popup-close" style="background:none;border:none;font-size:20px;color:var(--text-secondary);cursor:pointer;">✕</button></div><div style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:16px;line-height:1.6;">' + _esc(question.q) + '</div><div id="survey-answer-area">' + (isChoice ? options.map(function(opt, idx) { return '<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:var(--secondary-bg);border-radius:12px;border:1.5px solid transparent;cursor:pointer;"><input type="radio" name="survey_answer" value="' + _esc(opt) + '" style="accent-color:var(--accent-color);width:18px;height:18px;cursor:pointer;"><span style="font-size:15px;color:var(--text-primary);">' + _esc(opt) + '</span></label>'; }).join('') : '<textarea id="survey-text-input" rows="4" placeholder="写下你的回答..." style="width:100%;padding:12px;border:1.5px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:var(--font-family);"></textarea>') + '</div><div style="display:flex;gap:10px;margin-top:18px;"><button id="survey-skip" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;">跳过</button><button id="survey-submit" style="flex:2;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">回答</button></div>';
 
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        const close = () => wrap.remove();
+        var close = function() { wrap.remove(); };
         document.getElementById('survey-popup-close').onclick = close;
         document.getElementById('survey-skip').onclick = close;
-        wrap.onclick = (e) => { if (e.target === wrap) close(); };
+        wrap.onclick = function(e) { if (e.target === wrap) close(); };
 
         document.getElementById('survey-submit').onclick = function() {
-            let answer = '';
+            var answer = '';
             if (isChoice) {
-                const selected = document.querySelector('input[name="survey_answer"]:checked');
+                var selected = document.querySelector('input[name="survey_answer"]:checked');
                 if (!selected) { _notify('请选择一个选项', 'warning'); return; }
                 answer = selected.value;
             } else {
-                const input = document.getElementById('survey-text-input');
+                var input = document.getElementById('survey-text-input');
                 if (!input || !input.value.trim()) { _notify('请写下你的回答', 'warning'); return; }
                 answer = input.value.trim();
             }
@@ -242,14 +210,14 @@
                 isDaily: isDaily
             });
 
-            const pName = _getPartnerName();
-            const myName = _getMyName();
-            _sendAsMessage(`📝 问卷回答：「${question.q}」\n→ ${myName}：${answer}`, false);
+            var pName = _getPartnerName();
+            var myName = _getMyName();
+            _sendAsMessage('📝 问卷回答：「' + question.q + '」\n→ ' + myName + '：' + answer, false);
 
-            const cards = _getReplyCards();
-            const replyMsg = _randomPick(cards) + '～';
-            setTimeout(() => {
-                _sendAsMessage(`💬 ${pName}：${replyMsg}`, false);
+            var cards = _getReplyCards();
+            var replyMsg = _randomPick(cards) + '～';
+            setTimeout(function() {
+                _sendAsMessage('💬 ' + pName + '：' + replyMsg, false);
             }, 1500 + Math.random() * 3000);
 
             close();
@@ -261,50 +229,31 @@
     // 5. 主面板
     // =============================================
     window.openDreamSurveyManager = function() {
-        const old = document.getElementById('dream-manager-modal');
+        var old = document.getElementById('dream-manager-modal');
         if (old) old.remove();
 
-        const wrap = document.createElement('div');
+        var wrap = document.createElement('div');
         wrap.id = 'dream-manager-modal';
-        wrap.style.cssText = `
-            position:fixed;inset:0;z-index:10001;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
-            -webkit-backdrop-filter:blur(12px);
-            animation:fadeIn 0.3s ease;
-        `;
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);';
 
-        const inner = document.createElement('div');
-        inner.style.cssText = `
-            background:var(--primary-bg);
-            border-radius:24px;padding:24px 20px;
-            width:min(460px, 92vw);
-            max-height:80vh;
-            overflow-y:auto;
-            box-shadow:0 24px 64px rgba(0,0,0,0.3);
-            border:1px solid var(--border-color);
-            display:flex;
-            flex-direction:column;
-        `;
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:24px 20px;width:min(460px, 92vw);max-height:80vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);display:flex;flex-direction:column;';
 
-        const header = document.createElement('div');
+        var header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
-        header.innerHTML = `
-            <span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 梦向问卷</span>
-            <button id="dream-manager-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>
-        `;
+        header.innerHTML = '<span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 梦向问卷</span><button id="dream-manager-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>';
         inner.appendChild(header);
 
-        const actionRow = document.createElement('div');
+        var actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex;gap:10px;margin-bottom:16px;';
-        const btnPool = document.createElement('button');
+        var btnPool = document.createElement('button');
         btnPool.textContent = '📥 添加问卷池';
         btnPool.style.cssText = 'flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;cursor:pointer;font-weight:600;';
         btnPool.onclick = function() {
             wrap.remove();
             openSingleQuestionEditor();
         };
-        const btnCreate = document.createElement('button');
+        var btnCreate = document.createElement('button');
         btnCreate.textContent = '📝 创建问卷';
         btnCreate.style.cssText = 'flex:1;padding:10px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;cursor:pointer;font-weight:600;';
         btnCreate.onclick = function() {
@@ -315,12 +264,12 @@
         actionRow.appendChild(btnCreate);
         inner.appendChild(actionRow);
 
-        const listTitle = document.createElement('div');
+        var listTitle = document.createElement('div');
         listTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;';
         listTitle.textContent = '我的问卷';
         inner.appendChild(listTitle);
 
-        const listContainer = document.createElement('div');
+        var listContainer = document.createElement('div');
         listContainer.id = 'dream-manager-list';
         listContainer.style.cssText = 'flex:1;overflow-y:auto;max-height:40vh;';
 
@@ -328,10 +277,10 @@
 
         inner.appendChild(listContainer);
 
-        const closeBtn = document.createElement('button');
+        var closeBtn = document.createElement('button');
         closeBtn.textContent = '关闭';
         closeBtn.style.cssText = 'margin-top:12px;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;width:100%;';
-        closeBtn.onclick = () => wrap.remove();
+        closeBtn.onclick = function() { wrap.remove(); };
         inner.appendChild(closeBtn);
 
         wrap.appendChild(inner);
@@ -340,168 +289,124 @@
         wrap.addEventListener('click', function(e) {
             if (e.target === wrap) wrap.remove();
         });
-        document.getElementById('dream-manager-close').addEventListener('click', () => wrap.remove());
+        document.getElementById('dream-manager-close').addEventListener('click', function() { wrap.remove(); });
     };
 
     // =============================================
     // 6. 渲染问卷列表
     // =============================================
     function renderQuestionnaireList(container) {
-        const list = _getQuestionnaires();
+        var list = _getQuestionnaires();
         if (list.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center;padding:30px 20px;color:var(--text-secondary);">
-                    <div style="font-size:32px;margin-bottom:8px;">📋</div>
-                    <div style="font-size:14px;">还没有问卷</div>
-                    <div style="font-size:12px;opacity:0.7;">点击上方按钮创建吧~</div>
-                </div>
-            `;
+            container.innerHTML = '<div style="text-align:center;padding:30px 20px;color:var(--text-secondary);"><div style="font-size:32px;margin-bottom:8px;">📋</div><div style="font-size:14px;">还没有问卷</div><div style="font-size:12px;opacity:0.7;">点击上方按钮创建吧~</div></div>';
             return;
         }
-        let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
-        list.forEach((q, index) => {
-            const totalQuestions = q.questions ? q.questions.length : 0;
-            const status = q.replied ? '✅ 已回复' : (q.sent ? '⏳ 已发送' : '📄 未发送');
-            let typeLabel = '填空题';
+        var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+        for (var i = 0; i < list.length; i++) {
+            var q = list[i];
+            var totalQuestions = q.questions ? q.questions.length : 0;
+            var status = q.replied ? '✅ 已回复' : (q.sent ? '⏳ 已发送' : '📄 未发送');
+            var typeLabel = '填空题';
             if (q.questions) {
-                const hasChoice = q.questions.some(t => t.type === 'choice');
-                const hasText = q.questions.some(t => t.type === 'text');
+                var hasChoice = false;
+                var hasText = false;
+                for (var j = 0; j < q.questions.length; j++) {
+                    if (q.questions[j].type === 'choice') hasChoice = true;
+                    if (q.questions[j].type === 'text') hasText = true;
+                }
                 if (hasChoice && hasText) typeLabel = '混合';
                 else if (hasChoice) typeLabel = '选择题';
                 else typeLabel = '填空题';
             }
-            const replyTimeLabel = q.replyTime === 'immediate' ? '立即回复' : '随机时间';
-            html += `
-                <div style="display:flex;flex-direction:column;padding:12px 14px;background:var(--secondary-bg);border-radius:12px;border:1px solid var(--border-color);">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${_esc(q.title || '未命名问卷')}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">
-                                ${totalQuestions} 题 · ${typeLabel} · ${replyTimeLabel}
-                            </div>
-                        </div>
-                        <div style="font-size:12px;color:${q.replied ? 'var(--accent-color)' : 'var(--text-secondary)'};">
-                            ${status}
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-                        ${!q.sent ? `<button class="q-send-btn" data-id="${q.id}" style="padding:4px 12px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;font-size:12px;cursor:pointer;">发送问卷</button>` : ''}
-                        ${q.replied ? `<button class="q-view-btn" data-id="${q.id}" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;cursor:pointer;">查看回复</button>` : ''}
-                        <button class="q-delete-btn" data-id="${q.id}" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:#ff6b6b;font-size:12px;cursor:pointer;">删除</button>
-                    </div>
-                </div>
-            `;
-        });
+            var replyTimeLabel = q.replyTime === 'immediate' ? '立即回复' : '随机时间';
+            html += '<div style="display:flex;flex-direction:column;padding:12px 14px;background:var(--secondary-bg);border-radius:12px;border:1px solid var(--border-color);"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:var(--text-primary);">' + _esc(q.title || '未命名问卷') + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">' + totalQuestions + ' 题 · ' + typeLabel + ' · ' + replyTimeLabel + '</div></div><div style="font-size:12px;color:' + (q.replied ? 'var(--accent-color)' : 'var(--text-secondary)') + ';">' + status + '</div></div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">' + (!q.sent ? '<button class="q-send-btn" data-id="' + q.id + '" style="padding:4px 12px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;font-size:12px;cursor:pointer;">发送问卷</button>' : '') + (q.replied ? '<button class="q-view-btn" data-id="' + q.id + '" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;cursor:pointer;">查看回复</button>' : '') + '<button class="q-delete-btn" data-id="' + q.id + '" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:#ff6b6b;font-size:12px;cursor:pointer;">删除</button></div></div>';
+        }
         html += '</div>';
         container.innerHTML = html;
 
-        container.querySelectorAll('.q-send-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const id = this.dataset.id;
-                sendQuestionnaire(id);
-            });
-        });
-        container.querySelectorAll('.q-view-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const id = this.dataset.id;
-                viewQuestionnaireReply(id);
-            });
-        });
-        container.querySelectorAll('.q-delete-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const id = this.dataset.id;
-                if (confirm('确定要删除此问卷吗？')) {
-                    let list = _getQuestionnaires();
-                    list = list.filter(q => q.id !== id);
-                    _setQuestionnaires(list);
-                    const container = document.getElementById('dream-manager-list');
-                    if (container) renderQuestionnaireList(container);
-                    _notify('已删除', 'info');
-                }
-            });
-        });
+        var sendBtns = container.querySelectorAll('.q-send-btn');
+        for (var si = 0; si < sendBtns.length; si++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.dataset.id;
+                    sendQuestionnaire(id);
+                });
+            })(sendBtns[si]);
+        }
+        var viewBtns = container.querySelectorAll('.q-view-btn');
+        for (var vi = 0; vi < viewBtns.length; vi++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.dataset.id;
+                    viewQuestionnaireReply(id);
+                });
+            })(viewBtns[vi]);
+        }
+        var delBtns = container.querySelectorAll('.q-delete-btn');
+        for (var di = 0; di < delBtns.length; di++) {
+            (function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.dataset.id;
+                    if (confirm('确定要删除此问卷吗？')) {
+                        var list2 = _getQuestionnaires();
+                        var newList = [];
+                        for (var k = 0; k < list2.length; k++) {
+                            if (list2[k].id !== id) newList.push(list2[k]);
+                        }
+                        _setQuestionnaires(newList);
+                        var container2 = document.getElementById('dream-manager-list');
+                        if (container2) renderQuestionnaireList(container2);
+                        _notify('已删除', 'info');
+                    }
+                });
+            })(delBtns[di]);
+        }
     }
 
     // =============================================
     // 7. 添加问卷池（单题编辑器）
     // =============================================
     function openSingleQuestionEditor() {
-        const old = document.getElementById('dream-single-editor');
+        var old = document.getElementById('dream-single-editor');
         if (old) old.remove();
 
-        const wrap = document.createElement('div');
+        var wrap = document.createElement('div');
         wrap.id = 'dream-single-editor';
-        wrap.style.cssText = `
-            position:fixed;inset:0;z-index:10002;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
-        `;
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10002;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
 
-        const inner = document.createElement('div');
-        inner.style.cssText = `
-            background:var(--primary-bg);
-            border-radius:24px;padding:28px 24px;
-            width:min(460px, 92vw);
-            max-height:85vh;
-            overflow-y:auto;
-            box-shadow:0 24px 64px rgba(0,0,0,0.3);
-            border:1px solid var(--border-color);
-        `;
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:28px 24px;width:min(460px, 92vw);max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
-        inner.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 创建梦向问卷</span>
-                <button id="single-editor-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="font-weight:600;color:var(--text-primary);font-size:14px;">问题内容 *</label>
-                <input id="single-q-input" type="text" placeholder="例如：你今天最想和我分享什么？" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);">
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="font-weight:600;color:var(--text-primary);font-size:14px;">题型</label>
-                <select id="single-type-select" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;font-family:var(--font-family);">
-                    <option value="choice">选择题（单选）</option>
-                    <option value="text">填空题</option>
-                </select>
-            </div>
-            <div id="single-options-wrap" style="margin-bottom:16px;">
-                <label style="font-weight:600;color:var(--text-primary);font-size:14px;">选项（仅选择题需要，用英文逗号分隔）</label>
-                <input id="single-options-input" type="text" placeholder="例如：选项A, 选项B, 选项C" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);">
-            </div>
-            <div style="display:flex;gap:10px;margin-top:8px;">
-                <button id="single-cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;">取消</button>
-                <button id="single-save" style="flex:2;padding:11px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存到问卷池</button>
-            </div>
-        `;
+        inner.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 创建梦向问卷</span><button id="single-editor-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button></div><div style="margin-bottom:14px;"><label style="font-weight:600;color:var(--text-primary);font-size:14px;">问题内容 *</label><input id="single-q-input" type="text" placeholder="例如：你今天最想和我分享什么？" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);"></div><div style="margin-bottom:14px;"><label style="font-weight:600;color:var(--text-primary);font-size:14px;">题型</label><select id="single-type-select" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;font-family:var(--font-family);"><option value="choice">选择题（单选）</option><option value="text">填空题</option></select></div><div id="single-options-wrap" style="margin-bottom:16px;"><label style="font-weight:600;color:var(--text-primary);font-size:14px;">选项（仅选择题需要，用英文逗号分隔）</label><input id="single-options-input" type="text" placeholder="例如：选项A, 选项B, 选项C" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);"></div><div style="display:flex;gap:10px;margin-top:8px;"><button id="single-cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;">取消</button><button id="single-save" style="flex:2;padding:11px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">保存到问卷池</button></div>';
 
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        const close = () => wrap.remove();
+        var close = function() { wrap.remove(); };
         document.getElementById('single-editor-close').onclick = close;
         document.getElementById('single-cancel').onclick = close;
-        wrap.onclick = (e) => { if (e.target === wrap) close(); };
+        wrap.onclick = function(e) { if (e.target === wrap) close(); };
 
-        const typeSelect = document.getElementById('single-type-select');
-        const optWrap = document.getElementById('single-options-wrap');
-        typeSelect.onchange = () => {
+        var typeSelect = document.getElementById('single-type-select');
+        var optWrap = document.getElementById('single-options-wrap');
+        typeSelect.onchange = function() {
             optWrap.style.display = typeSelect.value === 'choice' ? 'block' : 'none';
         };
 
         document.getElementById('single-save').onclick = function() {
-            const q = document.getElementById('single-q-input').value.trim();
+            var q = document.getElementById('single-q-input').value.trim();
             if (!q) { _notify('请输入问题内容', 'warning'); return; }
-            const type = typeSelect.value;
-            let options = [];
+            var type = typeSelect.value;
+            var options = [];
             if (type === 'choice') {
-                const raw = document.getElementById('single-options-input').value.trim();
-                options = raw.split(',').map(s => s.trim()).filter(Boolean);
+                var raw = document.getElementById('single-options-input').value.trim();
+                options = raw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
                 if (options.length < 2) { _notify('选择题至少需要2个选项', 'warning'); return; }
             }
-            const questionnaire = {
+            var questionnaire = {
                 id: _generateId(),
                 title: q.length > 20 ? q.slice(0, 20) + '...' : q,
                 questions: [{
@@ -516,14 +421,14 @@
                 replied: false,
                 answers: {}
             };
-            const list = _getQuestionnaires();
+            var list = _getQuestionnaires();
             list.push(questionnaire);
             _setQuestionnaires(list);
             close();
             _notify('✅ 已添加到问卷池', 'success');
-            const manager = document.getElementById('dream-manager-modal');
+            var manager = document.getElementById('dream-manager-modal');
             if (manager) {
-                const container = document.getElementById('dream-manager-list');
+                var container = document.getElementById('dream-manager-list');
                 if (container) renderQuestionnaireList(container);
             }
         };
@@ -533,114 +438,87 @@
     // 8. 创建/编辑问卷（多题编辑器）
     // =============================================
     function openQuestionnaireEditor(existingId) {
-        const old = document.getElementById('dream-editor-modal');
+        var old = document.getElementById('dream-editor-modal');
         if (old) old.remove();
 
-        let editingData = null;
+        var editingData = null;
         if (existingId) {
-            const list = _getQuestionnaires();
-            editingData = list.find(q => q.id === existingId);
+            var list = _getQuestionnaires();
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].id === existingId) { editingData = list[i]; break; }
+            }
             if (!editingData) { _notify('问卷不存在', 'error'); return; }
         }
 
-        const wrap = document.createElement('div');
+        var wrap = document.createElement('div');
         wrap.id = 'dream-editor-modal';
-        wrap.style.cssText = `
-            position:fixed;inset:0;z-index:10003;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);
-        `;
+        wrap.style.cssText = 'position:fixed;inset:0;z-index:10003;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
 
-        const inner = document.createElement('div');
-        inner.style.cssText = `
-            background:var(--primary-bg);
-            border-radius:24px;padding:28px 24px;
-            width:min(480px, 94vw);
-            max-height:85vh;
-            overflow-y:auto;
-            box-shadow:0 24px 64px rgba(0,0,0,0.3);
-            border:1px solid var(--border-color);
-        `;
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:24px;padding:28px 24px;width:min(480px, 94vw);max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
 
-        const header = document.createElement('div');
+        var header = document.createElement('div');
         header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
-        header.innerHTML = `
-            <span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 ${editingData ? '编辑问卷' : '创建问卷'}</span>
-            <button id="editor-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>
-        `;
+        header.innerHTML = '<span style="font-size:20px;font-weight:700;color:var(--text-primary);">🧸 ' + (editingData ? '编辑问卷' : '创建问卷') + '</span><button id="editor-close" style="background:none;border:none;font-size:22px;color:var(--text-secondary);cursor:pointer;">✕</button>';
         inner.appendChild(header);
 
-        const titleGroup = document.createElement('div');
+        var titleGroup = document.createElement('div');
         titleGroup.style.cssText = 'margin-bottom:14px;';
-        titleGroup.innerHTML = `
-            <label style="font-weight:600;color:var(--text-primary);font-size:14px;">问卷标题 *</label>
-            <input id="editor-title-input" type="text" placeholder="例如：关于我的小调查" value="${editingData ? _esc(editingData.title) : ''}" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);">
-        `;
+        titleGroup.innerHTML = '<label style="font-weight:600;color:var(--text-primary);font-size:14px;">问卷标题 *</label><input id="editor-title-input" type="text" placeholder="例如：关于我的小调查" value="' + (editingData ? _esc(editingData.title) : '') + '" style="width:100%;padding:10px;border:1.5px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;box-sizing:border-box;font-family:var(--font-family);">';
         inner.appendChild(titleGroup);
 
-        const timeGroup = document.createElement('div');
+        var timeGroup = document.createElement('div');
         timeGroup.style.cssText = 'margin-bottom:16px;';
-        timeGroup.innerHTML = `
-            <label style="font-weight:600;color:var(--text-primary);font-size:14px;display:block;margin-bottom:6px;">回复时间</label>
-            <div style="display:flex;gap:10px;">
-                <button class="editor-time-btn active" data-value="immediate" style="flex:1;padding:8px;border:2px solid var(--accent-color);border-radius:10px;background:rgba(var(--accent-color-rgb),0.1);color:var(--text-primary);font-size:13px;cursor:pointer;font-family:var(--font-family);">立即收到</button>
-                <button class="editor-time-btn" data-value="random" style="flex:1;padding:8px;border:2px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">随机时间</button>
-            </div>
-            <div id="editor-time-hint" style="font-size:11px;color:var(--text-secondary);margin-top:6px;opacity:0.7;">对方将在 1 小时内随机时间完成</div>
-        `;
+        timeGroup.innerHTML = '<label style="font-weight:600;color:var(--text-primary);font-size:14px;display:block;margin-bottom:6px;">回复时间</label><div style="display:flex;gap:10px;"><button class="editor-time-btn active" data-value="immediate" style="flex:1;padding:8px;border:2px solid var(--accent-color);border-radius:10px;background:rgba(var(--accent-color-rgb),0.1);color:var(--text-primary);font-size:13px;cursor:pointer;font-family:var(--font-family);">立即收到</button><button class="editor-time-btn" data-value="random" style="flex:1;padding:8px;border:2px solid var(--border-color);border-radius:10px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">随机时间</button></div><div id="editor-time-hint" style="font-size:11px;color:var(--text-secondary);margin-top:6px;opacity:0.7;">对方将在 1 小时内随机时间完成</div>';
         inner.appendChild(timeGroup);
 
-        const questionList = document.createElement('div');
+        var questionList = document.createElement('div');
         questionList.id = 'editor-question-list';
         questionList.style.cssText = 'margin-bottom:12px;max-height:300px;overflow-y:auto;';
 
-        let questions = editingData ? JSON.parse(JSON.stringify(editingData.questions)) : [];
+        var questions = editingData ? JSON.parse(JSON.stringify(editingData.questions)) : [];
 
         function renderQuestions() {
             questionList.innerHTML = '';
             if (questions.length === 0) {
-                questionList.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">暂无题目，点击下方按钮添加</div>`;
+                questionList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">暂无题目，点击下方按钮添加</div>';
                 return;
             }
-            questions.forEach((q, idx) => {
-                const div = document.createElement('div');
+            for (var idx = 0; idx < questions.length; idx++) {
+                var q2 = questions[idx];
+                var div = document.createElement('div');
                 div.style.cssText = 'background:var(--secondary-bg);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--border-color);';
-                const typeLabel = q.type === 'choice' ? '选择题' : '填空题';
-                let optionsHtml = '';
-                if (q.type === 'choice' && q.options) {
-                    optionsHtml = q.options.map((opt, oi) => `<span style="display:inline-block;background:rgba(var(--accent-color-rgb),0.08);padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;font-size:11px;">${_esc(opt)}</span>`).join('');
+                var typeLabel = q2.type === 'choice' ? '选择题' : '填空题';
+                var optionsHtml = '';
+                if (q2.type === 'choice' && q2.options) {
+                    for (var oi = 0; oi < q2.options.length; oi++) {
+                        optionsHtml += '<span style="display:inline-block;background:rgba(var(--accent-color-rgb),0.08);padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;font-size:11px;">' + _esc(q2.options[oi]) + '</span>';
+                    }
                 }
-                div.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                        <div style="flex:1;">
-                            <div style="font-weight:600;font-size:14px;color:var(--text-primary);">${idx+1}. ${_esc(q.text)}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">
-                                ${typeLabel} ${optionsHtml ? '· ' + optionsHtml : ''}
-                            </div>
-                        </div>
-                        <button class="q-remove-btn" data-index="${idx}" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:16px;">✕</button>
-                    </div>
-                `;
+                div.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="flex:1;"><div style="font-weight:600;font-size:14px;color:var(--text-primary);">' + (idx+1) + '. ' + _esc(q2.text) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">' + typeLabel + (optionsHtml ? ' · ' + optionsHtml : '') + '</div></div><button class="q-remove-btn" data-index="' + idx + '" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:16px;">✕</button></div>';
                 questionList.appendChild(div);
-            });
-            questionList.querySelectorAll('.q-remove-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const idx = parseInt(this.dataset.index);
-                    questions.splice(idx, 1);
-                    renderQuestions();
-                });
-            });
+            }
+            var removeBtns = questionList.querySelectorAll('.q-remove-btn');
+            for (var ri = 0; ri < removeBtns.length; ri++) {
+                (function(btn) {
+                    btn.addEventListener('click', function() {
+                        var idx2 = parseInt(this.dataset.index);
+                        questions.splice(idx2, 1);
+                        renderQuestions();
+                    });
+                })(removeBtns[ri]);
+            }
         }
         renderQuestions();
 
         inner.appendChild(questionList);
 
-        const addBtn = document.createElement('button');
+        var addBtn = document.createElement('button');
         addBtn.textContent = '+ 添加题目';
         addBtn.style.cssText = 'width:100%;padding:10px;border:1.5px dashed var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;margin-bottom:16px;font-family:var(--font-family);';
         addBtn.onclick = function() {
-            const newQ = { id: _generateId(), text: '新题目', type: 'choice', options: ['选项1', '选项2'] };
-            const idx = questions.length;
+            var newQ = { id: _generateId(), text: '新题目', type: 'choice', options: ['选项1', '选项2'] };
+            var idx = questions.length;
             questions.push(newQ);
             openQuestionEditorInline(newQ, idx, function(updated) {
                 if (updated) {
@@ -654,40 +532,43 @@
         };
         inner.appendChild(addBtn);
 
-        const btnGroup = document.createElement('div');
+        var btnGroup = document.createElement('div');
         btnGroup.style.cssText = 'display:flex;gap:10px;margin-top:8px;';
-        const cancelBtn = document.createElement('button');
+        var cancelBtn = document.createElement('button');
         cancelBtn.textContent = '返回';
         cancelBtn.style.cssText = 'flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:14px;cursor:pointer;';
-        cancelBtn.onclick = () => wrap.remove();
-        const saveBtn = document.createElement('button');
+        cancelBtn.onclick = function() { wrap.remove(); };
+        var saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 保存问卷';
         saveBtn.style.cssText = 'flex:2;padding:11px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:700;cursor:pointer;';
         saveBtn.onclick = function() {
-            const title = document.getElementById('editor-title-input').value.trim();
+            var title = document.getElementById('editor-title-input').value.trim();
             if (!title) { _notify('请输入问卷标题', 'warning'); return; }
             if (questions.length === 0) { _notify('请至少添加一道题目', 'warning'); return; }
-            for (let q of questions) {
-                if (!q.text.trim()) { _notify('所有题目内容不能为空', 'warning'); return; }
-                if (q.type === 'choice' && (!q.options || q.options.length < 2)) {
+            for (var qi = 0; qi < questions.length; qi++) {
+                if (!questions[qi].text.trim()) { _notify('所有题目内容不能为空', 'warning'); return; }
+                if (questions[qi].type === 'choice' && (!questions[qi].options || questions[qi].options.length < 2)) {
                     _notify('选择题至少需要2个选项', 'warning'); return;
                 }
             }
-            const timeBtn = document.querySelector('.editor-time-btn.active');
-            const replyTime = timeBtn ? timeBtn.dataset.value : 'immediate';
+            var timeBtn = document.querySelector('.editor-time-btn.active');
+            var replyTime = timeBtn ? timeBtn.dataset.value : 'immediate';
 
-            const list = _getQuestionnaires();
+            var list2 = _getQuestionnaires();
             if (editingData) {
-                const idx = list.findIndex(q => q.id === editingData.id);
-                if (idx !== -1) {
-                    list[idx].title = title;
-                    list[idx].questions = questions;
-                    list[idx].replyTime = replyTime;
-                    _setQuestionnaires(list);
+                var idx2 = -1;
+                for (var li = 0; li < list2.length; li++) {
+                    if (list2[li].id === editingData.id) { idx2 = li; break; }
+                }
+                if (idx2 !== -1) {
+                    list2[idx2].title = title;
+                    list2[idx2].questions = questions;
+                    list2[idx2].replyTime = replyTime;
+                    _setQuestionnaires(list2);
                     _notify('问卷已更新', 'success');
                 }
             } else {
-                const newQ = {
+                var newQ2 = {
                     id: _generateId(),
                     title: title,
                     questions: questions,
@@ -697,14 +578,14 @@
                     replied: false,
                     answers: {}
                 };
-                list.push(newQ);
-                _setQuestionnaires(list);
+                list2.push(newQ2);
+                _setQuestionnaires(list2);
                 _notify('问卷已保存', 'success');
             }
             wrap.remove();
-            const manager = document.getElementById('dream-manager-modal');
+            var manager = document.getElementById('dream-manager-modal');
             if (manager) {
-                const container = document.getElementById('dream-manager-list');
+                var container = document.getElementById('dream-manager-list');
                 if (container) renderQuestionnaireList(container);
             } else {
                 window.openDreamSurveyManager();
@@ -717,113 +598,81 @@
         wrap.appendChild(inner);
         document.body.appendChild(wrap);
 
-        document.getElementById('editor-close').onclick = () => wrap.remove();
-        wrap.onclick = (e) => { if (e.target === wrap) wrap.remove(); };
+        document.getElementById('editor-close').onclick = function() { wrap.remove(); };
+        wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
 
-        timeGroup.querySelectorAll('.editor-time-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                timeGroup.querySelectorAll('.editor-time-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.style.borderColor = 'var(--border-color)';
-                    b.style.background = 'var(--secondary-bg)';
-                    b.style.color = 'var(--text-secondary)';
+        var timeBtns = timeGroup.querySelectorAll('.editor-time-btn');
+        for (var tb = 0; tb < timeBtns.length; tb++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    var btns = timeGroup.querySelectorAll('.editor-time-btn');
+                    for (var b2 = 0; b2 < btns.length; b2++) {
+                        btns[b2].classList.remove('active');
+                        btns[b2].style.borderColor = 'var(--border-color)';
+                        btns[b2].style.background = 'var(--secondary-bg)';
+                        btns[b2].style.color = 'var(--text-secondary)';
+                    }
+                    this.classList.add('active');
+                    this.style.borderColor = 'var(--accent-color)';
+                    this.style.background = 'rgba(var(--accent-color-rgb),0.1)';
+                    this.style.color = 'var(--text-primary)';
+                    var hint = document.getElementById('editor-time-hint');
+                    if (this.dataset.value === 'immediate') {
+                        hint.textContent = '对方将在 1 小时内随机时间完成';
+                    } else {
+                        hint.textContent = '对方将在 0 ~ 300 分钟内随机时间完成';
+                    }
                 });
-                this.classList.add('active');
-                this.style.borderColor = 'var(--accent-color)';
-                this.style.background = 'rgba(var(--accent-color-rgb),0.1)';
-                this.style.color = 'var(--text-primary)';
-                const hint = document.getElementById('editor-time-hint');
-                if (this.dataset.value === 'immediate') {
-                    hint.textContent = '对方将在 1 小时内随机时间完成';
-                } else {
-                    hint.textContent = '对方将在 0 ~ 300 分钟内随机时间完成';
-                }
-            });
-        });
+            })(timeBtns[tb]);
+        }
         if (editingData) {
-            const timeVal = editingData.replyTime || 'immediate';
-            const btn = timeGroup.querySelector(`.editor-time-btn[data-value="${timeVal}"]`);
+            var timeVal = editingData.replyTime || 'immediate';
+            var btn = timeGroup.querySelector('.editor-time-btn[data-value="' + timeVal + '"]');
             if (btn) btn.click();
         } else {
-            const defaultBtn = timeGroup.querySelector('.editor-time-btn[data-value="immediate"]');
+            var defaultBtn = timeGroup.querySelector('.editor-time-btn[data-value="immediate"]');
             if (defaultBtn) defaultBtn.click();
         }
 
-        // 内联题目编辑器
         function openQuestionEditorInline(q, idx, callback) {
-            const old = document.getElementById('q-editor-modal');
-            if (old) old.remove();
+            var old2 = document.getElementById('q-editor-modal');
+            if (old2) old2.remove();
 
-            const wrap2 = document.createElement('div');
+            var wrap2 = document.createElement('div');
             wrap2.id = 'q-editor-modal';
-            wrap2.style.cssText = `
-                position:fixed;inset:0;z-index:10004;
-                display:flex;align-items:center;justify-content:center;
-                background:rgba(0,0,0,0.5);
-            `;
-            const inner2 = document.createElement('div');
-            inner2.style.cssText = `
-                background:var(--primary-bg);
-                border-radius:20px;padding:24px;
-                width:min(420px, 90vw);
-                max-height:80vh;
-                overflow-y:auto;
-                border:1px solid var(--border-color);
-            `;
-            inner2.innerHTML = `
-                <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
-                    <span style="font-size:18px;font-weight:700;color:var(--text-primary);">编辑题目</span>
-                    <button id="q-editor-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button>
-                </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-weight:600;font-size:13px;">题目内容 *</label>
-                    <input id="q-editor-text" type="text" value="${_esc(q.text)}" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;">
-                </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-weight:600;font-size:13px;">题型</label>
-                    <select id="q-editor-type" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;">
-                        <option value="choice" ${q.type==='choice'?'selected':''}>选择题</option>
-                        <option value="text" ${q.type==='text'?'selected':''}>填空题</option>
-                    </select>
-                </div>
-                <div id="q-editor-options-wrap" style="margin-bottom:10px;">
-                    <label style="font-weight:600;font-size:13px;">选项（逗号分隔）</label>
-                    <input id="q-editor-options" type="text" value="${q.options ? q.options.join(', ') : ''}" placeholder="选项A, 选项B, 选项C" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;">
-                </div>
-                <div style="display:flex;gap:10px;margin-top:12px;">
-                    <button id="q-editor-cancel" style="flex:1;padding:9px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">取消</button>
-                    <button id="q-editor-save" style="flex:2;padding:9px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">保存</button>
-                </div>
-            `;
+            wrap2.style.cssText = 'position:fixed;inset:0;z-index:10004;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+            var inner2 = document.createElement('div');
+            inner2.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(420px, 90vw);max-height:80vh;overflow-y:auto;border:1px solid var(--border-color);';
+            inner2.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:14px;"><span style="font-size:18px;font-weight:700;color:var(--text-primary);">编辑题目</span><button id="q-editor-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button></div><div style="margin-bottom:10px;"><label style="font-weight:600;font-size:13px;">题目内容 *</label><input id="q-editor-text" type="text" value="' + _esc(q.text) + '" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;"></div><div style="margin-bottom:10px;"><label style="font-weight:600;font-size:13px;">题型</label><select id="q-editor-type" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;"><option value="choice" ' + (q.type === 'choice' ? 'selected' : '') + '>选择题</option><option value="text" ' + (q.type === 'text' ? 'selected' : '') + '>填空题</option></select></div><div id="q-editor-options-wrap" style="margin-bottom:10px;"><label style="font-weight:600;font-size:13px;">选项（逗号分隔）</label><input id="q-editor-options" type="text" value="' + (q.options ? q.options.join(', ') : '') + '" placeholder="选项A, 选项B, 选项C" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-primary);font-size:14px;margin-top:4px;"></div><div style="display:flex;gap:10px;margin-top:12px;"><button id="q-editor-cancel" style="flex:1;padding:9px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);cursor:pointer;">取消</button><button id="q-editor-save" style="flex:2;padding:9px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;font-weight:700;cursor:pointer;">保存</button></div>';
             wrap2.appendChild(inner2);
             document.body.appendChild(wrap2);
 
-            const closeEditor = () => wrap2.remove();
+            var closeEditor = function() { wrap2.remove(); };
             document.getElementById('q-editor-close').onclick = closeEditor;
             document.getElementById('q-editor-cancel').onclick = function() {
                 closeEditor();
                 callback(null);
             };
-            wrap2.onclick = (e) => { if (e.target === wrap2) { closeEditor(); callback(null); } };
+            wrap2.onclick = function(e) { if (e.target === wrap2) { closeEditor(); callback(null); } };
 
-            const typeSelect2 = document.getElementById('q-editor-type');
-            const optWrap2 = document.getElementById('q-editor-options-wrap');
+            var typeSelect2 = document.getElementById('q-editor-type');
+            var optWrap2 = document.getElementById('q-editor-options-wrap');
             typeSelect2.onchange = function() {
                 optWrap2.style.display = this.value === 'choice' ? 'block' : 'none';
             };
             typeSelect2.dispatchEvent(new Event('change'));
 
             document.getElementById('q-editor-save').onclick = function() {
-                const text = document.getElementById('q-editor-text').value.trim();
+                var text = document.getElementById('q-editor-text').value.trim();
                 if (!text) { _notify('请输入题目内容', 'warning'); return; }
-                const type = typeSelect2.value;
-                let options = [];
+                var type = typeSelect2.value;
+                var options = [];
                 if (type === 'choice') {
-                    const raw = document.getElementById('q-editor-options').value.trim();
-                    options = raw.split(',').map(s => s.trim()).filter(Boolean);
+                    var raw = document.getElementById('q-editor-options').value.trim();
+                    options = raw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
                     if (options.length < 2) { _notify('选择题至少需要2个选项', 'warning'); return; }
                 }
-                const updated = { id: q.id, text, type, options };
+                var updated = { id: q.id, text: text, type: type, options: options };
                 closeEditor();
                 callback(updated);
             };
@@ -834,71 +683,87 @@
     // 9. 发送问卷
     // =============================================
     function sendQuestionnaire(id) {
-        const list = _getQuestionnaires();
-        const q = list.find(item => item.id === id);
+        var list = _getQuestionnaires();
+        var q = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === id) { q = list[i]; break; }
+        }
         if (!q) { _notify('问卷不存在', 'error'); return; }
         if (q.sent) { _notify('该问卷已发送', 'info'); return; }
 
-        let delayMinutes = 0;
+        var delayMinutes = 0;
         if (q.replyTime === 'immediate') {
             delayMinutes = Math.floor(Math.random() * 60) + 1;
         } else {
             delayMinutes = Math.floor(Math.random() * 300) + 1;
         }
-        const delayMs = delayMinutes * 60 * 1000;
+        var delayMs = delayMinutes * 60 * 1000;
 
         q.sent = true;
         q.sentAt = new Date().toISOString();
         _setQuestionnaires(list);
 
-        const pName = _getPartnerName();
-        _sendAsMessage(`📋 问卷「${q.title}」已发送，${pName} 会在 ${delayMinutes} 分钟内完成作答`, true);
+        var pName = _getPartnerName();
+        _sendAsMessage('📋 问卷「' + q.title + '」已发送，' + pName + ' 会在 ' + delayMinutes + ' 分钟内完成作答', true);
 
-        const qId = q.id;
-        setTimeout(() => {
-            const currentList = _getQuestionnaires();
-            const currentQ = currentList.find(item => item.id === qId);
+        var qId = q.id;
+        setTimeout(function() {
+            var currentList = _getQuestionnaires();
+            var currentQ = null;
+            for (var ci = 0; ci < currentList.length; ci++) {
+                if (currentList[ci].id === qId) { currentQ = currentList[ci]; break; }
+            }
             if (!currentQ) {
                 console.warn('[梦向问卷] 问卷已被删除:', qId);
                 return;
             }
             
-            const answers = {};
-            currentQ.questions.forEach((question, idx) => {
+            var answers = {};
+            for (var qi = 0; qi < currentQ.questions.length; qi++) {
+                var question = currentQ.questions[qi];
                 if (question.type === 'choice') {
-                    const options = question.options || [];
-                    const chosen = options.length > 0 ? _randomPick(options) : '未选择';
+                    var options = question.options || [];
+                    var chosen = options.length > 0 ? _randomPick(options) : '未选择';
                     answers[question.id] = chosen;
                 } else {
-                    const cards = _getReplyCards();
-                    const count = Math.min(1 + Math.floor(Math.random() * 3), cards.length);
-                    const shuffled = cards.sort(() => Math.random() - 0.5);
-                    const picked = shuffled.slice(0, count);
+                    var cards = _getReplyCards();
+                    var count = Math.min(1 + Math.floor(Math.random() * 3), cards.length);
+                    var shuffled = cards.slice();
+                    for (var si = shuffled.length - 1; si > 0; si--) {
+                        var sj = Math.floor(Math.random() * (si + 1));
+                        var temp = shuffled[si];
+                        shuffled[si] = shuffled[sj];
+                        shuffled[sj] = temp;
+                    }
+                    var picked = shuffled.slice(0, count);
                     answers[question.id] = picked.join('');
                 }
-            });
+            }
             
-            const finalList = _getQuestionnaires();
-            const finalQ = finalList.find(item => item.id === qId);
+            var finalList = _getQuestionnaires();
+            var finalQ = null;
+            for (var fi = 0; fi < finalList.length; fi++) {
+                if (finalList[fi].id === qId) { finalQ = finalList[fi]; break; }
+            }
             if (finalQ) {
                 finalQ.replied = true;
                 finalQ.answers = answers;
                 _setQuestionnaires(finalList);
-                _sendAsMessage(`✅ ${pName} 已完成问卷「${finalQ.title}」的作答！`, true);
-                const manager = document.getElementById('dream-manager-modal');
+                _sendAsMessage('✅ ' + pName + ' 已完成问卷「' + finalQ.title + '」的作答！', true);
+                var manager = document.getElementById('dream-manager-modal');
                 if (manager) {
-                    const container = document.getElementById('dream-manager-list');
+                    var container = document.getElementById('dream-manager-list');
                     if (container) renderQuestionnaireList(container);
                 }
                 _notify('对方已完成问卷作答！', 'success', 3000);
             }
         }, delayMs);
 
-        _notify(`问卷已发送，对方将在 ${delayMinutes} 分钟内完成作答`, 'success', 3000);
-        const manager = document.getElementById('dream-manager-modal');
-        if (manager) {
-            const container = document.getElementById('dream-manager-list');
-            if (container) renderQuestionnaireList(container);
+        _notify('问卷已发送，对方将在 ' + delayMinutes + ' 分钟内完成作答', 'success', 3000);
+        var manager2 = document.getElementById('dream-manager-modal');
+        if (manager2) {
+            var container2 = document.getElementById('dream-manager-list');
+            if (container2) renderQuestionnaireList(container2);
         }
     }
 
@@ -906,8 +771,11 @@
     // 10. 查看回复
     // =============================================
     function viewQuestionnaireReply(id) {
-        const list = _getQuestionnaires();
-        const q = list.find(item => item.id === id);
+        var list = _getQuestionnaires();
+        var q = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === id) { q = list[i]; break; }
+        }
         if (!q) {
             _notify('问卷不存在或已被删除', 'error');
             return;
@@ -917,41 +785,26 @@
             return;
         }
 
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position:fixed;inset:0;z-index:10005;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);
-        `;
-        const inner = document.createElement('div');
-        inner.style.cssText = `
-            background:var(--primary-bg);
-            border-radius:20px;padding:24px;
-            width:min(440px, 92vw);
-            max-height:80vh;
-            overflow-y:auto;
-            border:1px solid var(--border-color);
-        `;
-        let html = `<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><span style="font-size:18px;font-weight:700;">📋 ${_esc(q.title)}</span><button id="reply-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button></div>`;
+        var modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;z-index:10005;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);';
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:var(--primary-bg);border-radius:20px;padding:24px;width:min(440px, 92vw);max-height:80vh;overflow-y:auto;border:1px solid var(--border-color);';
+        var html = '<div style="display:flex;justify-content:space-between;margin-bottom:12px;"><span style="font-size:18px;font-weight:700;">📋 ' + _esc(q.title) + '</span><button id="reply-close" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button></div>';
         
-        const pName = _getPartnerName();
-        html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">💕 ${pName} 的回答：</div>`;
+        var pName = _getPartnerName();
+        html += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">💕 ' + pName + ' 的回答：</div>';
         
-        q.questions.forEach((question, idx) => {
-            const answer = q.answers[question.id] || '未回答';
-            html += `
-                <div style="margin-bottom:12px;padding:10px;background:var(--secondary-bg);border-radius:10px;">
-                    <div style="font-weight:600;font-size:14px;color:var(--text-primary);">${idx+1}. ${_esc(question.text)}</div>
-                    <div style="font-size:13px;color:var(--accent-color);margin-top:4px;">💬 ${_esc(answer)}</div>
-                </div>
-            `;
-        });
+        for (var qi = 0; qi < q.questions.length; qi++) {
+            var question = q.questions[qi];
+            var answer = q.answers[question.id] || '未回答';
+            html += '<div style="margin-bottom:12px;padding:10px;background:var(--secondary-bg);border-radius:10px;"><div style="font-weight:600;font-size:14px;color:var(--text-primary);">' + (qi+1) + '. ' + _esc(question.text) + '</div><div style="font-size:13px;color:var(--accent-color);margin-top:4px;">💬 ' + _esc(answer) + '</div></div>';
+        }
         inner.innerHTML = html;
         modal.appendChild(inner);
         document.body.appendChild(modal);
 
-        modal.querySelector('#reply-close').onclick = () => modal.remove();
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        modal.querySelector('#reply-close').onclick = function() { modal.remove(); };
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
     }
 
     // =============================================
@@ -959,15 +812,15 @@
     // =============================================
     function _init() {
         console.log('[梦向问卷] 初始化中...');
-        setTimeout(() => {
+        setTimeout(function() {
             console.log('[梦向问卷] 检查每日弹出（概率50%）...');
             _checkDailyPopup();
         }, 3000);
         
-        setTimeout(() => {
+        setTimeout(function() {
             console.log('[梦向问卷] 备用检查每日弹出...');
-            const record = _getDailyRecord();
-            const today = new Date().toDateString();
+            var record = _getDailyRecord();
+            var today = new Date().toDateString();
             if (record.lastDate !== today) {
                 _checkDailyPopup();
             }
@@ -986,28 +839,31 @@
     window.forceCheckDailySurvey = _checkDailyPopup;
     window.viewDreamHistory = function() {
         try {
-            const h = _getHistory();
+            var h = _getHistory();
             if (h.length === 0) { _notify('暂无问卷回答记录', 'info'); return; }
-            const last = h.slice(-10).reverse();
-            let msg = '📜 最近10条问卷记录：\n';
-            last.forEach(item => {
-                const date = new Date(item.date).toLocaleString();
-                msg += `\n[${date}] ${item.question}\n→ ${item.answer}\n`;
-            });
+            var last = h.slice(-10).reverse();
+            var msg = '📜 最近10条问卷记录：\n';
+            for (var i = 0; i < last.length; i++) {
+                var date = new Date(last[i].date).toLocaleString();
+                msg += '\n[' + date + '] ' + last[i].question + '\n→ ' + last[i].answer + '\n';
+            }
             alert(msg);
         } catch(e) { alert('读取记录失败'); }
     };
     window.partnerAnswerSurvey = function(questionnaireId, answers) {
-        const list = _getQuestionnaires();
-        const q = list.find(item => item.id === questionnaireId);
+        var list = _getQuestionnaires();
+        var q = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === questionnaireId) { q = list[i]; break; }
+        }
         if (!q) { _notify('问卷不存在', 'error'); return; }
         q.replied = true;
         q.answers = answers || {};
         _setQuestionnaires(list);
         _notify('已手动标记问卷为已回复', 'success');
-        const manager = document.getElementById('dream-manager-modal');
+        var manager = document.getElementById('dream-manager-modal');
         if (manager) {
-            const container = document.getElementById('dream-manager-list');
+            var container = document.getElementById('dream-manager-list');
             if (container) renderQuestionnaireList(container);
         }
     };
