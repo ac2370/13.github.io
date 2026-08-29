@@ -1,8 +1,8 @@
-// beauty-pages.js – 将聊天框设为第一页，右滑新增两页（阿晏&小回 / 阿晏&66）
+// beauty-pages.js – 聊天框为第一页，右滑新增两页（阿晏&小回 / 阿晏&66），独立背景图，入口在高级功能
 (function() {
     'use strict';
 
-    // ----- 样式（仅作用于滑动容器及新增页面，不影响原有聊天样式） -----
+    // ----- 样式（仅作用于滑动容器及新增页面） -----
     const styles = `
         /* 滑动容器 */
         #beauty-slider-wrapper {
@@ -15,7 +15,7 @@
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            background: var(--bg, #f5efe9);
+            background: var(--beauty-bg, #f5efe9);
             position: relative;
         }
         #beauty-slider-wrapper::-webkit-scrollbar {
@@ -27,8 +27,7 @@
             scroll-snap-align: start;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 0 16px 20px;
-            background: var(--bg, #f5efe9);
+            background: var(--beauty-bg, #f5efe9);
             box-sizing: border-box;
         }
         .beauty-page::-webkit-scrollbar {
@@ -37,6 +36,16 @@
         .beauty-page::-webkit-scrollbar-thumb {
             background: #d4a5a5;
             border-radius: 10px;
+        }
+
+        /* 聊天页（第一页）无内边距，保持原有聊天框样式 */
+        #beauty-page-chat {
+            padding: 0 !important;
+        }
+        #beauty-page-chat .header,
+        #beauty-page-chat .main-chat-area {
+            width: 100% !important;
+            max-width: 100% !important;
         }
 
         /* 卡片样式（新增页面使用） */
@@ -300,8 +309,14 @@
             margin-left: auto;
             align-self: center;
         }
+        /* 缩短大矩形宽度，居中 */
+        .p2-bigimg-wrapper {
+            display: flex;
+            justify-content: center;
+        }
         .p2-bigimg {
-            width: 100%;
+            width: 85%;
+            max-width: 400px;
             aspect-ratio: 16/9;
             border-radius: 16px;
             overflow: hidden;
@@ -384,10 +399,19 @@
             margin: 2px 0;
             letter-spacing: 2px;
         }
+        /* 加长个签矩形气泡 */
         .p3-title-area .sub-title {
             font-size: 13px;
             color: #7a6a66;
             opacity: 0.6;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            display: inline-block;
+            max-width: 90%;
+            margin: 6px auto;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .p3-stats {
             display: grid;
@@ -412,36 +436,7 @@
             opacity: 0.6;
             margin-top: 2px;
         }
-        .p3-search {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(255, 248, 242, 0.5);
-            backdrop-filter: blur(4px);
-            border-radius: 40px;
-            padding: 10px 18px;
-            border: 1px solid rgba(255,255,255,0.3);
-            transition: 0.25s;
-            margin-bottom: 14px;
-        }
-        .p3-search:focus-within {
-            border-color: #d4a5a5;
-            box-shadow: 0 0 0 4px rgba(212,165,165,0.08);
-        }
-        .p3-search .icon {
-            font-size: 18px;
-            opacity: 0.4;
-        }
-        .p3-search input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            font-size: 14px;
-            font-family: inherit;
-            color: #3d2c2a;
-            outline: none;
-            min-width: 0;
-        }
+        /* 搜索栏已删除，不再需要样式 */
         .p3-chat-area {
             position: relative;
             padding: 6px 0;
@@ -600,6 +595,9 @@
             .beauty-page {
                 padding: 0 10px 16px;
             }
+            #beauty-page-chat {
+                padding: 0 !important;
+            }
             .beauty-card {
                 padding: 14px 16px;
                 border-radius: 22px;
@@ -637,6 +635,9 @@
                 width: 30%;
                 top: 30%;
             }
+            .p2-bigimg {
+                width: 95%;
+            }
         }
         @media (max-width: 380px) {
             .p2-polaroids {
@@ -650,38 +651,14 @@
             }
         }
 
-        /* 全局美化面板（弹出层，与原有设置不冲突） */
-        #beauty-global-settings-toggle {
-            position: fixed;
-            bottom: 90px;
-            right: 28px;
-            z-index: 9999;
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            box-shadow: 0 6px 24px rgba(0,0,0,0.08);
-            font-size: 24px;
-            cursor: pointer;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #3d2c2a;
-        }
-        #beauty-global-settings-toggle:hover {
-            transform: scale(1.06);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.14);
-        }
+        /* 美化面板（独立于原有设置） */
         #beauty-settings-panel {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 9998;
+            z-index: 99999;
             background: rgba(0,0,0,0.35);
             backdrop-filter: blur(6px);
             display: none;
@@ -864,10 +841,12 @@
                 </div>
             </div>
 
-            <!-- 大矩形图片 -->
+            <!-- 大矩形图片（已缩短） -->
             <div class="beauty-card" style="padding:12px;">
-                <div class="p2-bigimg">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='225'%3E%3Crect width='400' height='225' fill='%23e8ddd6'/%3E%3Ctext x='200' y='118' text-anchor='middle' fill='%239a8a86' font-size='14' font-family='sans-serif'%3E✨ 自定义大图 ✨%3C/text%3E%3C/svg%3E" alt="big image">
+                <div class="p2-bigimg-wrapper">
+                    <div class="p2-bigimg">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='225'%3E%3Crect width='400' height='225' fill='%23e8ddd6'/%3E%3Ctext x='200' y='118' text-anchor='middle' fill='%239a8a86' font-size='14' font-family='sans-serif'%3E✨ 自定义大图 ✨%3C/text%3E%3C/svg%3E" alt="big image">
+                    </div>
                 </div>
             </div>
 
@@ -892,7 +871,7 @@
                 <div class="avatar-overlay"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="banner av"></div>
             </div>
 
-            <!-- 标题区 -->
+            <!-- 标题区（个签已加长） -->
             <div class="p3-title-area">
                 <div class="main-title" contenteditable="true">阿晏 &amp; 66</div>
                 <div class="kaomoji" contenteditable="true">(◕‿◕)♡ (｡♥‿♥｡)</div>
@@ -908,11 +887,7 @@
                 </div>
             </div>
 
-            <!-- 搜索框 -->
-            <div class="p3-search">
-                <span class="icon">🔍</span>
-                <input type="text" placeholder="搜索回忆..." value="未定义">
-            </div>
+            <!-- 搜索栏已删除 -->
 
             <!-- 聊天对话区 -->
             <div class="beauty-card" style="padding:14px 14px 18px;position:relative;overflow:visible;">
@@ -976,19 +951,12 @@
         const page1 = document.createElement('div');
         page1.className = 'beauty-page';
         page1.id = 'beauty-page-chat';
-        // 将 header 和 mainChat 移入 page1
-        // 注意：需要保留它们的原有样式和事件，直接移动节点即可
-        // 先获取它们的父节点
+        // 将 header 和 mainChat 移入 page1（保持原有样式）
         const parent = header.parentNode;
-        // 将 header 和 mainChat 从原位置移除，放入 page1
-        // 但 header 和 mainChat 是兄弟节点，且可能还有其他兄弟（如 splash），我们只移动这两个
-        // 为避免破坏布局，我们先把它们取出
-        const headerClone = header; // 直接移动
+        const headerClone = header;
         const mainChatClone = mainChat;
-        // 从原父级移除
         parent.removeChild(headerClone);
         parent.removeChild(mainChatClone);
-        // 放入 page1
         page1.appendChild(headerClone);
         page1.appendChild(mainChatClone);
 
@@ -1004,14 +972,10 @@
         page3.id = 'beauty-page-66';
         page3.innerHTML = page3HTML;
 
-        // 将三个页面加入 wrapper
         wrapper.appendChild(page1);
         wrapper.appendChild(page2);
         wrapper.appendChild(page3);
 
-        // 将 wrapper 插入到原 parent 中，放置在原来 header 的位置（现在 header 已被移除）
-        // 由于我们移除了 header 和 mainChat，现在 parent 里可能只剩一些其他元素，我们将 wrapper 插入到 parent 的第一个子节点位置或直接追加
-        // 为了保持原有布局，我们插入到 parent 的开头（因为 header 原本在顶部）
         parent.insertBefore(wrapper, parent.firstChild);
 
         // 注入样式
@@ -1090,23 +1054,13 @@
             });
         }
 
-        // ----- 全局美化面板（独立于原有设置） -----
-        // 创建设置按钮和面板（在 body 中添加）
-        const settingsToggle = document.createElement('button');
-        settingsToggle.id = 'beauty-global-settings-toggle';
-        settingsToggle.setAttribute('aria-label', '全局美化');
-        settingsToggle.textContent = '⚙';
-        document.body.appendChild(settingsToggle);
-
-        const settingsPanel = document.createElement('div');
-        settingsPanel.id = 'beauty-settings-panel';
-        settingsPanel.innerHTML = `
+        // ----- 全局美化面板（独立，通过高级功能打开） -----
+        // 创建面板（不创建按钮）
+        const panel = document.createElement('div');
+        panel.id = 'beauty-settings-panel';
+        panel.innerHTML = `
             <div class="beauty-settings-box">
                 <h2><span>🎨</span> 全局美化</h2>
-                <div class="beauty-setting-group">
-                    <label>🌄 背景图片 (URL)</label>
-                    <input type="text" id="beauty-bg-url" placeholder="输入图片链接" value="">
-                </div>
                 <div class="beauty-setting-group">
                     <label>🎨 背景颜色</label>
                     <input type="color" id="beauty-bg-color" value="#f5efe9">
@@ -1120,7 +1074,15 @@
                     <input type="text" id="beauty-card-opacity" placeholder="0.6 ~ 1.0" value="0.85">
                 </div>
                 <div class="beauty-setting-group">
-                    <label>🖼️ 上传自定义图片 (用于任意位置)</label>
+                    <label>🖼️ 页面2 背景图 (URL)</label>
+                    <input type="text" id="beauty-bg-url-page2" placeholder="页面2背景图链接" value="">
+                </div>
+                <div class="beauty-setting-group">
+                    <label>🖼️ 页面3 背景图 (URL)</label>
+                    <input type="text" id="beauty-bg-url-page3" placeholder="页面3背景图链接" value="">
+                </div>
+                <div class="beauty-setting-group">
+                    <label>📂 上传自定义图片 (用于任意位置)</label>
                     <div class="file-wrap">
                         <input type="file" id="beauty-custom-file" accept="image/*">
                         <button id="beauty-apply-file-btn">应用</button>
@@ -1132,74 +1094,89 @@
                 <button class="beauty-settings-close" id="beauty-settings-close">✨ 完成</button>
             </div>
         `;
-        document.body.appendChild(settingsPanel);
+        document.body.appendChild(panel);
 
-        // 绑定设置面板事件
-        const toggleBtn = document.getElementById('beauty-global-settings-toggle');
-        const panel = document.getElementById('beauty-settings-panel');
+        // 绑定面板事件
+        const panelEl = document.getElementById('beauty-settings-panel');
         const closeBtn = document.getElementById('beauty-settings-close');
         const bgColorInput = document.getElementById('beauty-bg-color');
-        const bgUrlInput = document.getElementById('beauty-bg-url');
         const textColorInput = document.getElementById('beauty-text-color');
         const cardOpacityInput = document.getElementById('beauty-card-opacity');
+        const bgUrlPage2 = document.getElementById('beauty-bg-url-page2');
+        const bgUrlPage3 = document.getElementById('beauty-bg-url-page3');
         const customFileInput = document.getElementById('beauty-custom-file');
         const applyFileBtn = document.getElementById('beauty-apply-file-btn');
 
         function applyBeautySettings() {
             const bgColor = bgColorInput.value;
-            const bgUrl = bgUrlInput.value.trim();
             const textColor = textColorInput.value;
             const opacity = parseFloat(cardOpacityInput.value) || 0.85;
+            const bg2 = bgUrlPage2.value.trim();
+            const bg3 = bgUrlPage3.value.trim();
 
-            // 应用到滑动容器内的所有页面
+            // 应用到所有页面
             document.querySelectorAll('.beauty-page').forEach(page => {
-                page.style.setProperty('--bg', bgColor);
+                page.style.setProperty('--beauty-bg', bgColor);
                 page.style.setProperty('--text', textColor);
                 page.style.setProperty('--card-bg', `rgba(255,248,242,${Math.min(opacity,1)})`);
-                if (bgUrl) {
-                    page.style.backgroundImage = `url(${bgUrl})`;
-                    page.style.backgroundSize = 'cover';
-                    page.style.backgroundPosition = 'center';
-                    page.style.backgroundAttachment = 'fixed';
-                } else {
-                    page.style.backgroundImage = 'none';
-                    page.style.backgroundSize = 'auto';
-                }
             });
+
+            // 页面2 背景
+            const p2 = document.getElementById('beauty-page-xiaohui');
+            if (p2) {
+                if (bg2) {
+                    p2.style.backgroundImage = `url(${bg2})`;
+                    p2.style.backgroundSize = 'cover';
+                    p2.style.backgroundPosition = 'center';
+                    p2.style.backgroundAttachment = 'fixed';
+                } else {
+                    p2.style.backgroundImage = 'none';
+                    p2.style.backgroundSize = 'auto';
+                }
+            }
+
+            // 页面3 背景
+            const p3 = document.getElementById('beauty-page-66');
+            if (p3) {
+                if (bg3) {
+                    p3.style.backgroundImage = `url(${bg3})`;
+                    p3.style.backgroundSize = 'cover';
+                    p3.style.backgroundPosition = 'center';
+                    p3.style.backgroundAttachment = 'fixed';
+                } else {
+                    p3.style.backgroundImage = 'none';
+                    p3.style.backgroundSize = 'auto';
+                }
+            }
+
             // 保存
             localStorage.setItem('beauty-bg-color', bgColor);
-            localStorage.setItem('beauty-bg-url', bgUrl);
             localStorage.setItem('beauty-text-color', textColor);
             localStorage.setItem('beauty-card-opacity', String(opacity));
+            localStorage.setItem('beauty-bg-url-page2', bg2);
+            localStorage.setItem('beauty-bg-url-page3', bg3);
         }
 
         function loadBeautySettings() {
             const bgColor = localStorage.getItem('beauty-bg-color') || '#f5efe9';
-            const bgUrl = localStorage.getItem('beauty-bg-url') || '';
             const textColor = localStorage.getItem('beauty-text-color') || '#3d2c2a';
             const opacity = localStorage.getItem('beauty-card-opacity') || '0.85';
+            const bg2 = localStorage.getItem('beauty-bg-url-page2') || '';
+            const bg3 = localStorage.getItem('beauty-bg-url-page3') || '';
             bgColorInput.value = bgColor;
-            bgUrlInput.value = bgUrl;
             textColorInput.value = textColor;
             cardOpacityInput.value = opacity;
+            bgUrlPage2.value = bg2;
+            bgUrlPage3.value = bg3;
             applyBeautySettings();
         }
 
-        toggleBtn.addEventListener('click', function() {
-            panel.classList.toggle('open');
-            // 同步当前值
-            bgColorInput.value = localStorage.getItem('beauty-bg-color') || '#f5efe9';
-            bgUrlInput.value = localStorage.getItem('beauty-bg-url') || '';
-            textColorInput.value = localStorage.getItem('beauty-text-color') || '#3d2c2a';
-            cardOpacityInput.value = localStorage.getItem('beauty-card-opacity') || '0.85';
-        });
-
         closeBtn.addEventListener('click', function() {
             applyBeautySettings();
-            panel.classList.remove('open');
+            panelEl.classList.remove('open');
         });
 
-        [bgColorInput, bgUrlInput, textColorInput, cardOpacityInput].forEach(el => {
+        [bgColorInput, textColorInput, cardOpacityInput, bgUrlPage2, bgUrlPage3].forEach(el => {
             el.addEventListener('input', applyBeautySettings);
             el.addEventListener('change', applyBeautySettings);
         });
@@ -1234,14 +1211,46 @@
             alert(`✨ 已替换 ${count} 个图片占位！`);
         });
 
-        // 加载已保存的设置
+        // 加载设置
         loadBeautySettings();
 
-        // 点击 page1 空白区域可聚焦聊天输入框（原有功能保留）
-        // 由于聊天框已移动，但事件绑定仍然有效，无需额外处理
+        // ----- 在高级功能面板中添加“页面美化”入口 -----
+        function addBeautyEntryToAdvanced() {
+            const advancedModal = document.getElementById('advanced-modal');
+            if (!advancedModal) {
+                // 如果高级功能面板还没加载，稍后重试
+                setTimeout(addBeautyEntryToAdvanced, 500);
+                return;
+            }
+            const list = advancedModal.querySelector('.settings-item-list');
+            if (!list) {
+                setTimeout(addBeautyEntryToAdvanced, 500);
+                return;
+            }
+            // 检查是否已添加
+            if (list.querySelector('.beauty-entry-item')) return;
+            const item = document.createElement('div');
+            item.className = 'settings-item beauty-entry-item';
+            item.style.cursor = 'pointer';
+            item.innerHTML = `<i class="fas fa-palette"></i><span>页面美化</span>`;
+            item.addEventListener('click', function() {
+                // 关闭高级功能面板（可选）
+                const advModal = document.getElementById('advanced-modal');
+                if (advModal && typeof hideModal === 'function') {
+                    hideModal(advModal);
+                }
+                // 打开美化面板
+                const panel = document.getElementById('beauty-settings-panel');
+                if (panel) panel.classList.add('open');
+            });
+            list.appendChild(item);
+        }
+
+        // 尝试添加
+        setTimeout(addBeautyEntryToAdvanced, 300);
 
         console.log('🌸 聊天框已嵌入滑动容器，右滑可查看“阿晏&小回”和“阿晏&66”页面');
-        console.log('💡 点击任意文字可直接编辑，全局美化面板已启用。');
+        console.log('💡 页面美化入口已添加到高级功能中。');
     }
 
     // ----- 执行初始化 -----
