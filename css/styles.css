@@ -10907,20 +10907,20 @@
 
         /* ===== 个人页（右半） ===== */
         .profile-page {
-            width: 50%;
-            height: 100%;
-            background: #F5F5F5;  /* 加上背景色，防止透明 */
-            overflow-y: auto;     /* 改为可滚动，内容多时可滑动 */
-            overflow-x: hidden;
-            padding: 12px 14px 16px;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;            /* 卡片间距 */
-            position: relative;
-            z-index: 1;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+           width: 50%;
+           height: 100%;
+           background: #F5F5F5;
+           overflow-y: auto;          /* 允许滚动，确保所有内容可见 */
+           overflow-x: hidden;
+           padding: 12px 14px 20px;   /* 底部增加padding */
+           flex-shrink: 0;
+           display: flex;
+           flex-direction: column;
+           gap: 10px;
+           position: relative;
+           z-index: 1;
+           scrollbar-width: none;     /* 隐藏滚动条保持美观 */
+           -ms-overflow-style: none;
         }
         .profile-page::-webkit-scrollbar {
             display: none;
