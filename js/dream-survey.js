@@ -129,7 +129,7 @@
     }
 
     // =============================================
-    // 3. 每日随机弹出（概率 50%）
+    // 3. 每日随机弹出（触发概率 50%）
     // =============================================
     function _checkDailyPopup() {
         const today = new Date().toDateString();
@@ -141,7 +141,7 @@
             return;
         }
         
-        // 🔥 修改：概率改为 50%
+        // 🔥 触发概率 50%
         const PROBABILITY = 0.5;
         if (Math.random() > PROBABILITY) {
             console.log('[梦向问卷] 随机概率未命中（50%），今日不弹出');
@@ -749,6 +749,7 @@
             if (defaultBtn) defaultBtn.click();
         }
 
+        // 内联题目编辑器
         function openQuestionEditorInline(q, idx, callback) {
             const old = document.getElementById('q-editor-modal');
             if (old) old.remove();
@@ -959,7 +960,7 @@
     function _init() {
         console.log('[梦向问卷] 初始化中...');
         setTimeout(() => {
-            console.log('[梦向问卷] 检查每日弹出（概率 50%）...');
+            console.log('[梦向问卷] 检查每日弹出（概率50%）...');
             _checkDailyPopup();
         }, 3000);
         
@@ -1011,5 +1012,5 @@
         }
     };
 
-    console.log('[梦向问卷] 完整系统已加载（概率 50%）。');
+    console.log('[梦向问卷] 完整系统已加载（触发概率50%）。');
 })();
