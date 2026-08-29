@@ -1,1221 +1,1114 @@
-// beauty-pages.js – 聊天框仅第一页，页面2/3无底部输入框，大矩形缩小，布局对齐，双人插画与对话行平齐
+// beauty-pages.js - 全局美化页面（双击解锁拖动，单击切换页面）
 (function() {
     'use strict';
 
-    // ----- 样式（仅作用于滑动容器及新增页面） -----
-    const styles = `
-        /* 滑动容器 */
-        #beauty-slider-wrapper {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-            overflow-x: auto;
-            overflow-y: hidden;
-            scroll-snap-type: x mandatory;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            background: var(--beauty-bg, #f5efe9);
-            position: relative;
-        }
-        #beauty-slider-wrapper::-webkit-scrollbar {
-            display: none;
-        }
-        .beauty-page {
-            flex: 0 0 100vw;
-            height: 100vh;
-            scroll-snap-align: start;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: var(--beauty-bg, #f5efe9);
-            box-sizing: border-box;
-            padding: 0 16px 20px;
-        }
-        .beauty-page::-webkit-scrollbar {
-            width: 3px;
-        }
-        .beauty-page::-webkit-scrollbar-thumb {
-            background: #d4a5a5;
-            border-radius: 10px;
-        }
+    var STORAGE_KEY = 'beauty_pages_config';
+    var PAGE_COUNT = 3;
 
-        /* 聊天页（第一页）无内边距，保持原有聊天框样式 */
-        #beauty-page-chat {
-            padding: 0 !important;
-        }
-        #beauty-page-chat .header,
-        #beauty-page-chat .main-chat-area {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        /* 确保聊天页的输入区域正常显示 */
-        #beauty-page-chat .input-area-wrapper {
-            width: 100% !important;
-        }
+    var DEFAULT_CONFIG = {
+        showIndicator: true,
+        indicatorPos: null,
+        pages: [
+            { type: 'chat', label: '聊天' },
+            {
+                type: 'beauty',
+                label: '阿晏&小回',
+                bgImage: '',
+                avatar: '',
+                title: '',
+                subtitle: '',
+                tags: [
+                    { key: '昵称', value: '小回' },
+                    { key: '副文', value: '星河入梦' },
+                    { key: '标签', value: '✨ 温柔' },
+                    { key: '文案', value: '你是人间理想' },
+                    { key: '注册', value: '2026-08-29' },
+                    { key: '标题', value: '✨ 星河入梦 ✨' }
+                ],
+                textColor: '#ffffff',
+                fontSize: 20,
+                subtitleColor: 'rgba(255,255,255,0.7)',
+                subtitleSize: 14,
+                tagColor: 'rgba(255,255,255,0.85)',
+                tagSize: 16
+            },
+            {
+                type: 'beauty',
+                label: '阿晏&66',
+                bgImage: '',
+                avatar: '',
+                title: '',
+                subtitle: '',
+                tags: [
+                    { key: '昵称', value: '66' },
+                    { key: '副文', value: '月色温柔' },
+                    { key: '标签', value: '🌙 偏爱' },
+                    { key: '文案', value: '你是我唯一的偏爱' },
+                    { key: '注册', value: '2026-08-29' },
+                    { key: '标题', value: '🌙 月色温柔 🌙' }
+                ],
+                textColor: '#ffffff',
+                fontSize: 20,
+                subtitleColor: 'rgba(255,255,255,0.7)',
+                subtitleSize: 14,
+                tagColor: 'rgba(255,255,255,0.85)',
+                tagSize: 16
+            }
+        ],
+        currentIndex: 0
+    };
 
-        /* 卡片样式（新增页面使用） */
-        .beauty-card {
-            background: rgba(255, 248, 242, 0.85);
-            backdrop-filter: blur(8px);
-            border-radius: 28px;
-            padding: 18px 20px;
-            box-shadow: 0 12px 40px rgba(60, 40, 35, 0.10);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            margin-bottom: 14px;
-            transition: background 0.3s;
-        }
+    var config = null;
+    var isAnimating = false;
 
-        /* 页面2 样式 */
-        .p2-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .p2-top .left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .p2-top .left .avatar-lg {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid rgba(255, 255, 255, 0.7);
-            flex-shrink: 0;
-            background: #e8ddd6;
-        }
-        .p2-top .left .avatar-lg img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p2-top .left .info .name {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        .p2-top .left .info .sig {
-            font-size: 12px;
-            color: #7a6a66;
-            opacity: 0.7;
-        }
-        .p2-top .right {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-        .p2-top .right .item {
-            text-align: center;
-        }
-        .p2-top .right .item .main {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .p2-top .right .item .sub {
-            font-size: 11px;
-            color: #7a6a66;
-            opacity: 0.6;
-        }
-        .p2-top .right .divider {
-            color: #7a6a66;
-            opacity: 0.25;
-            font-weight: 200;
-            align-self: center;
-        }
-        .p2-memorial {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        .p2-memorial .left {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1 1 0;
-            min-width: 100px;
-        }
-        .p2-memorial .left .avatars {
-            display: flex;
-            align-items: center;
-            position: relative;
-            width: 80px;
-            height: 60px;
-        }
-        .p2-memorial .left .avatars .av {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid rgba(255, 255, 255, 0.8);
-            position: absolute;
-            background: #e8ddd6;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        .p2-memorial .left .avatars .av:first-child {
-            left: 0;
-            z-index: 2;
-        }
-        .p2-memorial .left .avatars .av:last-child {
-            left: 28px;
-            z-index: 1;
-        }
-        .p2-memorial .left .avatars .av img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p2-memorial .left .badge {
-            background: rgba(212, 165, 165, 0.25);
-            backdrop-filter: blur(4px);
-            padding: 2px 14px;
-            border-radius: 30px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #8a6a6a;
-            border: 1px solid rgba(255,255,255,0.4);
-            margin-bottom: 4px;
-            white-space: nowrap;
-        }
-        .p2-memorial .left .days {
-            font-size: 24px;
-            font-weight: 700;
-            color: #3d2c2a;
-            letter-spacing: 1px;
-            line-height: 1.2;
-        }
-        .p2-memorial .left .days small {
-            font-size: 13px;
-            font-weight: 400;
-            color: #7a6a66;
-            opacity: 0.6;
-            margin-left: 4px;
-        }
-        .p2-memorial .right {
-            display: flex;
-            gap: 6px;
-            flex: 1 1 0;
-            min-width: 80px;
-            justify-content: flex-end;
-        }
-        .p2-memorial .right .polaroid {
-            width: 64px;
-            height: 72px;
-            background: #fff;
-            border-radius: 6px 6px 12px 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            padding: 5px 5px 10px 5px;
-            transform: rotate(-2deg);
-            transition: 0.3s;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.5);
-        }
-        .p2-memorial .right .polaroid:last-child {
-            transform: rotate(4deg);
-            margin-left: -12px;
-        }
-        .p2-memorial .right .polaroid img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 2px;
-        }
-        .p2-music {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .p2-music .cover {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            border: 2px solid rgba(255,255,255,0.6);
-            background: #e8ddd6;
-        }
-        .p2-music .cover img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p2-music .info {
-            flex: 1;
-            min-width: 0;
-        }
-        .p2-music .info .title {
-            font-weight: 600;
-            font-size: 14px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .p2-music .info .sub {
-            font-size: 11px;
-            color: #7a6a66;
-            opacity: 0.6;
-        }
-        .p2-music .play-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(212, 165, 165, 0.20);
-            backdrop-filter: blur(4px);
-            font-size: 18px;
-            color: #3d2c2a;
-            cursor: pointer;
-            transition: 0.25s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .p2-music .play-btn:hover {
-            background: rgba(212, 165, 165, 0.35);
-            transform: scale(1.04);
-        }
-        .p2-profile {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .p2-profile .av {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            border: 2px solid rgba(255,255,255,0.6);
-            background: #e8ddd6;
-        }
-        .p2-profile .av img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p2-profile .info .name {
-            font-weight: 600;
-            font-size: 15px;
-        }
-        .p2-profile .info .sub {
-            font-size: 12px;
-            color: #7a6a66;
-            opacity: 0.6;
-        }
-        .p2-profile .dots {
-            font-size: 20px;
-            letter-spacing: 2px;
-            opacity: 0.5;
-            margin-left: auto;
-            align-self: center;
-        }
-        /* 大矩形进一步缩小（宽度 70%，最大宽度 320px） */
-        .p2-bigimg-wrapper {
-            display: flex;
-            justify-content: center;
-        }
-        .p2-bigimg {
-            width: 70%;
-            max-width: 320px;
-            aspect-ratio: 16/9;
-            border-radius: 16px;
-            overflow: hidden;
-            background: #e8ddd6;
-            border: 1px solid rgba(255,255,255,0.3);
-            position: relative;
-        }
-        .p2-bigimg img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p2-polaroids {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-        .p2-polaroids .pol {
-            aspect-ratio: 3/4;
-            background: #fff;
-            border-radius: 4px 4px 10px 10px;
-            padding: 4px 4px 10px 4px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.4);
-        }
-        .p2-polaroids .pol img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 2px;
-        }
+    // ---- 拖动相关 ----
+    var isDraggable = false;          // 是否允许拖动（双击解锁）
+    var indicatorDragging = false;
+    var dragStartX = 0, dragStartY = 0;
+    var dragOrigLeft = 0, dragOrigTop = 0;
+    var longPressTimer = null;        // 长按定时器
+    var isLongPress = false;
 
-        /* 页面3 样式 */
-        .p3-banner {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16/6;
-            border-radius: 28px;
-            overflow: hidden;
-            background: linear-gradient(145deg, #e8ddd6, #dccbc2);
-            margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .p3-banner img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p3-banner .avatar-overlay {
-            position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 4px solid rgba(255,255,255,0.9);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            background: #e8ddd6;
-        }
-        .p3-banner .avatar-overlay img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p3-title-area {
-            text-align: center;
-            padding: 18px 0 6px;
-        }
-        .p3-title-area .main-title {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-        .p3-title-area .kaomoji {
-            font-size: 14px;
-            opacity: 0.5;
-            margin: 2px 0;
-            letter-spacing: 2px;
-        }
-        /* 加长个签矩形气泡 */
-        .p3-title-area .sub-title {
-            font-size: 13px;
-            color: #7a6a66;
-            opacity: 0.6;
-            padding: 8px 20px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            display: inline-block;
-            max-width: 90%;
-            margin: 6px auto;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .p3-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            text-align: center;
-        }
-        .p3-stats .stat {
-            background: rgba(255, 248, 242, 0.4);
-            backdrop-filter: blur(4px);
-            border-radius: 20px;
-            padding: 14px 6px;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .p3-stats .stat .num {
-            font-size: 20px;
-            font-weight: 700;
-        }
-        .p3-stats .stat .label {
-            font-size: 11px;
-            color: #7a6a66;
-            opacity: 0.6;
-            margin-top: 2px;
-        }
+    function _getConfig() {
+        try {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                var parsed = JSON.parse(saved);
+                if (parsed.showIndicator === undefined) parsed.showIndicator = true;
+                for (var i = 0; i < DEFAULT_CONFIG.pages.length; i++) {
+                    if (!parsed.pages[i]) parsed.pages[i] = DEFAULT_CONFIG.pages[i];
+                    for (var key in DEFAULT_CONFIG.pages[i]) {
+                        if (parsed.pages[i][key] === undefined) {
+                            parsed.pages[i][key] = DEFAULT_CONFIG.pages[i][key];
+                        }
+                    }
+                }
+                return parsed;
+            }
+        } catch(e) {}
+        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    }
 
-        /* 页面3 模拟聊天区（双人对话 + 插画） */
-        .p3-chat-area {
-            position: relative;
-            padding: 6px 0;
-            min-height: 160px; /* 保证插画显示 */
-        }
-        .p3-chat-area .chat-flow {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .p3-chat-area .chat-flow .cmsg {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            max-width: 78%;
-        }
-        .p3-chat-area .chat-flow .cmsg.right {
-            flex-direction: row-reverse;
-            align-self: flex-end;
-        }
-        .p3-chat-area .chat-flow .cmsg .cav {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            border: 2px solid rgba(255,255,255,0.5);
-            background: #e8ddd6;
-        }
-        .p3-chat-area .chat-flow .cmsg .cav img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p3-chat-area .chat-flow .cmsg .cbubble {
-            background: rgba(255, 248, 242, 0.6);
-            backdrop-filter: blur(4px);
-            padding: 8px 14px;
-            border-radius: 18px 18px 18px 4px;
-            font-size: 13px;
-            line-height: 1.5;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .p3-chat-area .chat-flow .cmsg.right .cbubble {
-            border-radius: 18px 18px 4px 18px;
-            background: rgba(212, 165, 165, 0.18);
-        }
-        /* 双人插画 – 与对话行平齐（垂直居中于两行对话） */
-        .p3-chat-area .float-illus {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 38%;
-            aspect-ratio: 3/4;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.08);
-            border: 3px solid rgba(255,255,255,0.6);
-            background: #e8ddd6;
-        }
-        .p3-chat-area .float-illus img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+    function _saveConfig() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        } catch(e) {}
+    }
 
-        /* 帖子卡片（保留） */
-        .p3-post {
-            padding: 14px 16px;
-            background: rgba(255, 248, 242, 0.4);
-            backdrop-filter: blur(4px);
-            border-radius: 24px;
-            border: 1px solid rgba(255,255,255,0.3);
-            margin-bottom: 14px;
-        }
-        .p3-post .quote {
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 4px 0 8px;
-            font-style: italic;
-            color: #3d2c2a;
-        }
-        .p3-post .quote::before {
-            content: '"';
-            font-size: 20px;
-            opacity: 0.3;
-            margin-right: 2px;
-        }
-        .p3-post .quote::after {
-            content: '"';
-            font-size: 20px;
-            opacity: 0.3;
-            margin-left: 2px;
-        }
-        .p3-post .actions {
-            display: flex;
-            gap: 18px;
-            font-size: 13px;
-            color: #7a6a66;
-            opacity: 0.6;
-            padding-top: 4px;
-            border-top: 1px solid rgba(0,0,0,0.04);
-        }
-        .p3-post .actions span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
+    function _esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 
-        /* 页面3 无底部输入栏（已删除） */
-
-        .beauty-kaomoji-deco {
-            font-size: 12px;
-            opacity: 0.15;
-            letter-spacing: 3px;
-            text-align: center;
-            padding: 4px 0;
-            pointer-events: none;
-            user-select: none;
-            line-height: 1.6;
+    function _notify(msg, type, duration) {
+        type = type || 'info';
+        duration = duration || 2000;
+        if (typeof showNotification === 'function') {
+            showNotification(msg, type, duration);
+        } else {
+            alert(msg);
         }
+    }
 
-        /* 响应式微调 */
-        @media (max-width: 480px) {
-            .beauty-page {
-                padding: 0 10px 16px;
-            }
-            #beauty-page-chat {
-                padding: 0 !important;
-            }
-            .beauty-card {
-                padding: 14px 16px;
-                border-radius: 22px;
-            }
-            .p2-memorial .right .polaroid {
-                width: 52px;
-                height: 60px;
-            }
-            .p2-top .left .avatar-lg {
-                width: 42px;
-                height: 42px;
-            }
-            .p2-memorial .left .avatars .av {
-                width: 42px;
-                height: 42px;
-            }
-            .p2-memorial .left .avatars .av:last-child {
-                left: 22px;
-            }
-            .p2-memorial .left .days {
-                font-size: 20px;
-            }
-            .p3-banner .avatar-overlay {
-                width: 56px;
-                height: 56px;
-                bottom: -16px;
-            }
-            .p3-title-area .main-title {
-                font-size: 18px;
-            }
-            .p3-stats .stat .num {
-                font-size: 17px;
-            }
-            .p3-chat-area .float-illus {
-                width: 30%;
-            }
-            .p2-bigimg {
-                width: 80%;
-                max-width: 260px;
-            }
-        }
-        @media (max-width: 380px) {
-            .p2-polaroids {
-                gap: 5px;
-            }
-            .p2-top .right .item .main {
-                font-size: 12px;
-            }
-            .p2-top .right .item .sub {
-                font-size: 10px;
-            }
-            .p2-bigimg {
-                width: 90%;
-                max-width: 200px;
+    function updateBeautyPage(index) {
+        var pageData = config.pages[index];
+        if (!pageData || pageData.type !== 'beauty') return;
+
+        var pageEl = document.querySelector('.beauty-page-' + index);
+        if (!pageEl) return;
+
+        var bgLayer = pageEl.querySelector('.beauty-bg-layer');
+        if (bgLayer) {
+            if (pageData.bgImage) {
+                bgLayer.style.backgroundImage = 'url(' + pageData.bgImage + ')';
+                bgLayer.style.opacity = '1';
+            } else {
+                bgLayer.style.backgroundImage = '';
+                bgLayer.style.opacity = '0';
             }
         }
 
-        /* 美化面板（独立于原有设置） */
-        #beauty-settings-panel {
+        var tagContainer = pageEl.querySelector('.beauty-tags');
+        if (tagContainer) {
+            tagContainer.innerHTML = '';
+            var tags = pageData.tags || [];
+            if (tags.length === 0) {
+                var empty = document.createElement('div');
+                empty.style.cssText = 'text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:14px;';
+                empty.textContent = '点击添加标签';
+                empty.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    openBeautySettings(index);
+                });
+                tagContainer.appendChild(empty);
+            } else {
+                tags.forEach(function(tag) {
+                    var row = document.createElement('div');
+                    row.className = 'beauty-tag-row';
+                    row.style.cssText = `
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 12px 0;
+                        border-bottom: 1px solid rgba(255,255,255,0.06);
+                        font-size: ${pageData.tagSize || 16}px;
+                        color: ${pageData.tagColor || 'rgba(255,255,255,0.85)'};
+                        cursor: pointer;
+                        transition: background 0.2s;
+                        align-items: center;
+                    `;
+                    row.innerHTML = `
+                        <span style="opacity:0.6;font-weight:300;">${_esc(tag.key)}</span>
+                        <span style="font-weight:400;">${_esc(tag.value)}</span>
+                    `;
+                    row.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        openBeautySettings(index);
+                    });
+                    tagContainer.appendChild(row);
+                });
+            }
+        }
+    }
+
+    function refreshAllPages() {
+        for (var i = 0; i < config.pages.length; i++) {
+            if (config.pages[i].type === 'beauty') {
+                updateBeautyPage(i);
+            }
+        }
+        updateIndicatorVisibility();
+        restoreIndicatorPosition();
+        updateDragModeUI();
+    }
+
+    function goToPage(index, animate) {
+        if (isAnimating) return;
+        if (index < 0 || index >= PAGE_COUNT) return;
+
+        var track = document.getElementById('beauty-pages-track');
+        if (!track) return;
+
+        config.currentIndex = index;
+        _saveConfig();
+
+        var offset = -index * 100;
+        if (animate !== false) {
+            isAnimating = true;
+            track.style.transition = 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)';
+        } else {
+            track.style.transition = 'none';
+        }
+
+        track.style.transform = 'translateX(' + offset + '%)';
+
+        if (animate !== false) {
+            setTimeout(function() { isAnimating = false; }, 450);
+        } else {
+            isAnimating = false;
+        }
+
+        updateIndicator(index);
+    }
+
+    function updateIndicator(index) {
+        var dots = document.querySelectorAll('.beauty-dot');
+        dots.forEach(function(dot, i) {
+            if (i === index) {
+                dot.style.background = 'var(--accent-color, #e0698a)';
+                dot.style.width = '18px';
+                dot.style.borderRadius = '4px';
+            } else {
+                dot.style.background = 'rgba(255,255,255,0.3)';
+                dot.style.width = '8px';
+                dot.style.borderRadius = '50%';
+            }
+        });
+    }
+
+    function updateIndicatorVisibility() {
+        var indicator = document.getElementById('beauty-indicator');
+        if (indicator) {
+            indicator.style.display = config.showIndicator ? 'flex' : 'none';
+        }
+    }
+
+    function saveIndicatorPosition(left, top) {
+        config.indicatorPos = { left: left, top: top };
+        _saveConfig();
+    }
+
+    function restoreIndicatorPosition() {
+        var indicator = document.getElementById('beauty-indicator');
+        if (!indicator) return;
+        if (config.indicatorPos) {
+            indicator.style.left = config.indicatorPos.left + 'px';
+            indicator.style.top = config.indicatorPos.top + 'px';
+            indicator.style.right = 'auto';
+            indicator.style.bottom = 'auto';
+            indicator.style.transform = 'none';
+        } else {
+            indicator.style.left = '50%';
+            indicator.style.top = 'auto';
+            indicator.style.bottom = '130px';
+            indicator.style.right = 'auto';
+            indicator.style.transform = 'translateX(-50%)';
+        }
+    }
+
+    function updateDragModeUI() {
+        var indicator = document.getElementById('beauty-indicator');
+        if (!indicator) return;
+        if (isDraggable) {
+            indicator.style.border = '1px solid var(--accent-color, #e0698a)';
+            indicator.style.boxShadow = '0 0 20px rgba(var(--accent-color-rgb, 224,105,138), 0.3)';
+            indicator.style.cursor = 'grab';
+            indicator.title = '拖动模式：单击切换页面，长按拖动';
+        } else {
+            indicator.style.border = '1px solid rgba(255,255,255,0.06)';
+            indicator.style.boxShadow = 'none';
+            indicator.style.cursor = 'pointer';
+            indicator.title = '双击进入拖动模式';
+        }
+    }
+
+    // =============================================
+    // 指示器事件处理（单击切换页面，长按拖动）
+    // =============================================
+    function handleIndicatorClick(e) {
+        e.stopPropagation();
+        // 如果正在拖动，不处理点击
+        if (indicatorDragging) return;
+        var dot = e.target.closest('.beauty-dot');
+        if (dot) {
+            var idx = parseInt(dot.dataset.index);
+            if (idx !== config.currentIndex) {
+                goToPage(idx, true);
+            }
+        }
+    }
+
+    function handleIndicatorDoubleClick(e) {
+        e.stopPropagation();
+        isDraggable = !isDraggable;
+        updateDragModeUI();
+        if (isDraggable) {
+            _notify('🔓 已解锁拖动（长按拖动）', 'info', 1500);
+        } else {
+            _notify('🔒 已锁定指示器', 'info', 1500);
+            var indicator = document.getElementById('beauty-indicator');
+            if (indicator) {
+                var rect = indicator.getBoundingClientRect();
+                saveIndicatorPosition(rect.left, rect.top);
+            }
+        }
+    }
+
+    // =============================================
+    // 创建可拖动指示器
+    // =============================================
+    function addIndicator(wrapper) {
+        var indicator = document.createElement('div');
+        indicator.id = 'beauty-indicator';
+        indicator.style.cssText = `
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 99999;
-            background: rgba(0,0,0,0.35);
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.25);
             backdrop-filter: blur(6px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        #beauty-settings-panel.open {
-            display: flex;
-        }
-        .beauty-settings-box {
-            background: rgba(255, 252, 248, 0.96);
-            backdrop-filter: blur(20px);
-            border-radius: 40px;
-            padding: 32px 28px 28px;
-            max-width: 420px;
-            width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.20);
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .beauty-settings-box h2 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            letter-spacing: 0.3px;
-            color: #3d2c2a;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .beauty-settings-box h2 span {
-            font-size: 22px;
-        }
-        .beauty-setting-group {
-            margin-bottom: 18px;
-        }
-        .beauty-setting-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #7a6a66;
-            margin-bottom: 5px;
-            letter-spacing: 0.3px;
-        }
-        .beauty-setting-group input[type="color"],
-        .beauty-setting-group input[type="text"],
-        .beauty-setting-group input[type="file"] {
-            width: 100%;
-            padding: 10px 14px;
+            padding: 4px 12px;
             border-radius: 16px;
-            border: 1px solid #e8ddd6;
-            background: rgba(255, 248, 242, 0.6);
-            font-size: 14px;
-            font-family: inherit;
-            color: #3d2c2a;
-            transition: 0.25s;
-            outline: none;
-        }
-        .beauty-setting-group input[type="color"] {
-            height: 44px;
-            padding: 4px;
+            border: 1px solid rgba(255,255,255,0.06);
             cursor: pointer;
+            user-select: none;
+            touch-action: none;
+            transition: border 0.3s, box-shadow 0.3s;
+        `;
+        indicator.title = '双击进入拖动模式';
+
+        if (config.indicatorPos) {
+            indicator.style.left = config.indicatorPos.left + 'px';
+            indicator.style.top = config.indicatorPos.top + 'px';
+            indicator.style.right = 'auto';
+            indicator.style.bottom = 'auto';
+            indicator.style.transform = 'none';
+        } else {
+            indicator.style.left = '50%';
+            indicator.style.top = 'auto';
+            indicator.style.bottom = '130px';
+            indicator.style.right = 'auto';
+            indicator.style.transform = 'translateX(-50%)';
         }
-        .beauty-setting-group input:focus {
-            border-color: #d4a5a5;
-            box-shadow: 0 0 0 4px rgba(212,165,165,0.15);
+
+        var labels = ['💬 聊天', '🌸 小回', '🌙 66'];
+
+        for (var i = 0; i < PAGE_COUNT; i++) {
+            var dot = document.createElement('button');
+            dot.className = 'beauty-dot';
+            dot.dataset.index = i;
+            dot.style.cssText = `
+                width: ${i === config.currentIndex ? '16px' : '8px'};
+                height: 6px;
+                border-radius: ${i === config.currentIndex ? '3px' : '50%'};
+                border: none;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                background: ${i === config.currentIndex ? 'var(--accent-color, #e0698a)' : 'rgba(255,255,255,0.3)'};
+                padding: 0;
+                flex-shrink: 0;
+                pointer-events: auto;
+            `;
+            dot.title = labels[i];
+            indicator.appendChild(dot);
         }
-        .beauty-setting-group .file-wrap {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+
+        // ---- 双击检测 ----
+        var lastClickTime = 0;
+        indicator.addEventListener('click', function(e) {
+            var now = Date.now();
+            if (now - lastClickTime < 400) {
+                // 双击
+                handleIndicatorDoubleClick(e);
+                lastClickTime = 0;
+            } else {
+                lastClickTime = now;
+                setTimeout(function() {
+                    if (Date.now() - lastClickTime < 300) return;
+                    handleIndicatorClick(e);
+                }, 250);
+            }
+        });
+
+        // ---- 长按拖动（仅在 isDraggable 为 true 时生效） ----
+        var pressTimer = null;
+        var isPressed = false;
+
+        function startPress(e) {
+            if (!isDraggable) return;
+            isPressed = true;
+            indicatorDragging = false;
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+            var rect = indicator.getBoundingClientRect();
+            dragStartX = clientX - rect.left;
+            dragStartY = clientY - rect.top;
+            dragOrigLeft = rect.left;
+            dragOrigTop = rect.top;
+            // 长按 300ms 后进入拖动模式
+            pressTimer = setTimeout(function() {
+                if (isPressed) {
+                    indicatorDragging = true;
+                    indicator.style.cursor = 'grabbing';
+                    if (e.cancelable) e.preventDefault();
+                }
+            }, 300);
         }
-        .beauty-setting-group .file-wrap input[type="file"] {
-            flex: 1;
-            padding: 8px 10px;
+
+        function movePress(e) {
+            if (!isDraggable || !isPressed) return;
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+            // 如果已经进入拖动模式，移动指示器
+            if (indicatorDragging) {
+                var newLeft = clientX - dragStartX;
+                var newTop = clientY - dragStartY;
+                var maxX = window.innerWidth - indicator.offsetWidth;
+                var maxY = window.innerHeight - indicator.offsetHeight;
+                newLeft = Math.max(0, Math.min(newLeft, maxX));
+                newTop = Math.max(0, Math.min(newTop, maxY));
+                indicator.style.left = newLeft + 'px';
+                indicator.style.top = newTop + 'px';
+                indicator.style.right = 'auto';
+                indicator.style.bottom = 'auto';
+                indicator.style.transform = 'none';
+                if (e.cancelable) e.preventDefault();
+            } else {
+                // 如果移动距离过大，取消长按（防止长按被误触）
+                var rect = indicator.getBoundingClientRect();
+                var dx = (clientX - dragStartX - rect.left);
+                var dy = (clientY - dragStartY - rect.top);
+                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                    clearTimeout(pressTimer);
+                    isPressed = false;
+                    indicator.style.cursor = 'grab';
+                }
+            }
         }
-        .beauty-setting-group .file-wrap button {
-            padding: 8px 18px;
-            border-radius: 16px;
-            border: none;
-            background: #d4a5a5;
-            color: #fff;
-            font-weight: 500;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.25s;
-            white-space: nowrap;
+
+        function endPress(e) {
+            clearTimeout(pressTimer);
+            if (indicatorDragging) {
+                // 拖动结束，保存位置
+                var rect = indicator.getBoundingClientRect();
+                saveIndicatorPosition(rect.left, rect.top);
+                indicatorDragging = false;
+                indicator.style.cursor = 'grab';
+            }
+            isPressed = false;
+            if (e.cancelable) e.preventDefault();
         }
-        .beauty-setting-group .file-wrap button:hover {
-            background: #c49494;
+
+        // 鼠标事件
+        indicator.addEventListener('mousedown', startPress);
+        document.addEventListener('mousemove', movePress);
+        document.addEventListener('mouseup', endPress);
+
+        // 触摸事件
+        indicator.addEventListener('touchstart', startPress, { passive: false });
+        document.addEventListener('touchmove', movePress, { passive: false });
+        document.addEventListener('touchend', endPress, { passive: false });
+
+        // 阻止在拖动时触发页面滑动
+        indicator.addEventListener('touchmove', function(e) {
+            if (indicatorDragging) e.stopPropagation();
+        }, { passive: false });
+
+        if (!config.showIndicator) {
+            indicator.style.display = 'none';
         }
-        .beauty-settings-close {
-            width: 100%;
-            padding: 12px;
-            border-radius: 20px;
-            border: none;
-            background: #3d2c2a;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 6px;
-            transition: 0.25s;
-        }
-        .beauty-settings-close:hover {
-            background: #2d1f1d;
-        }
-        .beauty-settings-box::-webkit-scrollbar {
-            width: 4px;
-        }
-        .beauty-settings-box::-webkit-scrollbar-thumb {
-            background: #d4a5a5;
-            border-radius: 10px;
-        }
-    `;
 
-    // ----- HTML 内容（页面2 & 页面3） -----
-    const page2HTML = `
-        <div style="padding-top:10px;">
-            <!-- 顶部气泡 -->
-            <div class="beauty-card">
-                <div class="p2-top">
-                    <div class="left">
-                        <div class="avatar-lg"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="avatar"></div>
-                        <div class="info">
-                            <div class="name" contenteditable="true">阿晏</div>
-                            <div class="sig" contenteditable="true">✨ 晴天 · 小回</div>
-                        </div>
-                    </div>
-                    <div class="right">
-                        <div class="item"><div class="main" contenteditable="true">地球online</div><div class="sub" contenteditable="true">主标</div></div>
-                        <span class="divider">|</span>
-                        <div class="item"><div class="main" contenteditable="true">未定义</div><div class="sub" contenteditable="true">副标</div></div>
-                    </div>
-                </div>
-            </div>
+        wrapper.appendChild(indicator);
+        updateDragModeUI();
+    }
 
-            <!-- 纪念日 -->
-            <div class="beauty-card">
-                <div class="p2-memorial">
-                    <div class="left">
-                        <div class="badge" contenteditable="true">🌸 初遇</div>
-                        <div class="avatars">
-                            <div class="av"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="av1"></div>
-                            <div class="av"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23b8a09c'/%3E%3C/svg%3E" alt="av2"></div>
-                        </div>
-                        <div class="days" id="p2-days-count">0 <small>天</small></div>
-                        <input type="date" id="p2-memorial-date" style="font-size:11px;padding:4px 8px;border-radius:12px;border:1px solid #e8ddd6;background:transparent;margin-top:4px;width:140px;text-align:center;color:#3d2c2a;font-family:inherit;">
-                    </div>
-                    <div class="right">
-                        <div class="polaroid"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23e8ddd6'/%3E%3C/svg%3E" alt="polaroid1"></div>
-                        <div class="polaroid"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23dccbc2'/%3E%3C/svg%3E" alt="polaroid2"></div>
-                    </div>
-                </div>
-            </div>
+    // =============================================
+    // 页面滑动（与指示器隔离）
+    // =============================================
+    function bindTouchEvents(wrapper, track) {
+        var startX = 0, startIndex = 0, isDragging = false;
 
-            <!-- 音乐播放器 -->
-            <div class="beauty-card">
-                <div class="p2-music">
-                    <div class="cover"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="music cover"></div>
-                    <div class="info">
-                        <div class="title" contenteditable="true">🎵 喜欢</div>
-                        <div class="sub" contenteditable="true">阿晏 · 小回</div>
-                    </div>
-                    <button class="play-btn" id="p2-play-btn-2">▶</button>
-                </div>
-            </div>
+        wrapper.addEventListener('touchstart', function(e) {
+            if (isAnimating) return;
+            if (e.target.closest('#beauty-indicator')) return;
+            var touch = e.touches[0];
+            startX = touch.clientX;
+            startIndex = config.currentIndex || 0;
+            isDragging = true;
+            track.style.transition = 'none';
+        }, { passive: true });
 
-            <!-- 头像+昵称+... -->
-            <div class="beauty-card">
-                <div class="p2-profile">
-                    <div class="av"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="profile av"></div>
-                    <div class="info">
-                        <div class="name" contenteditable="true">小回</div>
-                        <div class="sub" contenteditable="true">✨ 被疼爱</div>
-                    </div>
-                    <div class="dots" contenteditable="true">⋯</div>
-                </div>
-            </div>
+        wrapper.addEventListener('touchmove', function(e) {
+            if (!isDragging || isAnimating) return;
+            if (e.target.closest('#beauty-indicator')) return;
+            var touch = e.touches[0];
+            var diff = touch.clientX - startX;
+            var offset = -startIndex * 100 + (diff / wrapper.offsetWidth * 100);
+            offset = Math.min(0, Math.max(offset, -(PAGE_COUNT - 1) * 100));
+            track.style.transform = 'translateX(' + offset + '%)';
+        }, { passive: true });
 
-            <!-- 大矩形图片（已缩小至70%，max-width:320px） -->
-            <div class="beauty-card" style="padding:12px;">
-                <div class="p2-bigimg-wrapper">
-                    <div class="p2-bigimg">
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='225'%3E%3Crect width='400' height='225' fill='%23e8ddd6'/%3E%3Ctext x='200' y='118' text-anchor='middle' fill='%239a8a86' font-size='14' font-family='sans-serif'%3E✨ 自定义大图 ✨%3C/text%3E%3C/svg%3E" alt="big image">
-                    </div>
-                </div>
-            </div>
+        wrapper.addEventListener('touchend', function(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            if (e.target.closest('#beauty-indicator')) return;
+            var diff = 0;
+            var lastTouch = e.changedTouches[0];
+            if (lastTouch) diff = lastTouch.clientX - startX;
+            var threshold = 50;
+            var newIndex = startIndex;
+            if (diff < -threshold) newIndex = Math.min(startIndex + 1, PAGE_COUNT - 1);
+            else if (diff > threshold) newIndex = Math.max(startIndex - 1, 0);
+            goToPage(newIndex, true);
+        }, { passive: true });
 
-            <!-- 四张拍立得 -->
-            <div class="beauty-card" style="padding:12px;">
-                <div class="p2-polaroids">
-                    <div class="pol"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='133'%3E%3Crect width='100' height='133' fill='%23f0e8e2'/%3E%3C/svg%3E" alt="pol1"></div>
-                    <div class="pol"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='133'%3E%3Crect width='100' height='133' fill='%23e8ddd6'/%3E%3C/svg%3E" alt="pol2"></div>
-                    <div class="pol"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='133'%3E%3Crect width='100' height='133' fill='%23dccbc2'/%3E%3C/svg%3E" alt="pol3"></div>
-                    <div class="pol"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='133'%3E%3Crect width='100' height='133' fill='%23f5efe9'/%3E%3C/svg%3E" alt="pol4"></div>
-                </div>
-            </div>
-            <div class="beauty-kaomoji-deco">♡ (˘▽˘)っ♡  (￣▽￣)ノ  ✧*。</div>
-        </div>
-    `;
+        var mouseDown = false, mouseStartX = 0, mouseStartIndex = 0;
+        wrapper.addEventListener('mousedown', function(e) {
+            if (isAnimating) return;
+            if (e.button !== 0) return;
+            if (e.target.closest('#beauty-indicator')) return;
+            mouseDown = true;
+            mouseStartX = e.clientX;
+            mouseStartIndex = config.currentIndex || 0;
+            track.style.transition = 'none';
+            e.preventDefault();
+        });
 
-    const page3HTML = `
-        <div style="padding-top:10px;">
-            <!-- 横幅 + 头像 -->
-            <div class="p3-banner">
-                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Crect width='600' height='200' fill='%23dccbc2'/%3E%3Ctext x='300' y='110' text-anchor='middle' fill='%239a8a86' font-size='18' font-family='sans-serif'%3E🌸 阿晏 &amp; 66 🌸%3C/text%3E%3C/svg%3E" alt="banner">
-                <div class="avatar-overlay"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="banner av"></div>
-            </div>
+        document.addEventListener('mousemove', function(e) {
+            if (!mouseDown || isAnimating) return;
+            if (e.target.closest('#beauty-indicator')) return;
+            var diff = e.clientX - mouseStartX;
+            var offset = -mouseStartIndex * 100 + (diff / wrapper.offsetWidth * 100);
+            offset = Math.min(0, Math.max(offset, -(PAGE_COUNT - 1) * 100));
+            track.style.transform = 'translateX(' + offset + '%)';
+        });
 
-            <!-- 标题区（个签已加长） -->
-            <div class="p3-title-area">
-                <div class="main-title" contenteditable="true">阿晏 &amp; 66</div>
-                <div class="kaomoji" contenteditable="true">(◕‿◕)♡ (｡♥‿♥｡)</div>
-                <div class="sub-title" contenteditable="true">✨ 红线的两端是你我 · 一杯美式 一杯拿铁</div>
-            </div>
+        document.addEventListener('mouseup', function(e) {
+            if (!mouseDown) return;
+            mouseDown = false;
+            if (e.target.closest('#beauty-indicator')) return;
+            var diff = e.clientX - mouseStartX;
+            var threshold = 50;
+            var newIndex = mouseStartIndex;
+            if (diff < -threshold) newIndex = Math.min(mouseStartIndex + 1, PAGE_COUNT - 1);
+            else if (diff > threshold) newIndex = Math.max(mouseStartIndex - 1, 0);
+            goToPage(newIndex, true);
+        });
+    }
 
-            <!-- 三栏统计 -->
-            <div class="beauty-card" style="padding:14px 12px;">
-                <div class="p3-stats">
-                    <div class="stat"><div class="num" contenteditable="true">365</div><div class="label" contenteditable="true">Days</div></div>
-                    <div class="stat"><div class="num" contenteditable="true">∞</div><div class="label" contenteditable="true">Love</div></div>
-                    <div class="stat"><div class="num" contenteditable="true">66</div><div class="label" contenteditable="true">Moments</div></div>
-                </div>
-            </div>
-
-            <!-- 模拟聊天区（双人对话 + 插画，插画垂直居中） -->
-            <div class="beauty-card" style="padding:14px 14px 18px;position:relative;overflow:visible;">
-                <div class="p3-chat-area">
-                    <div class="chat-flow">
-                        <div class="cmsg">
-                            <div class="cav"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="cav1"></div>
-                            <div class="cbubble" contenteditable="true">你今天好嘛 🌷</div>
-                        </div>
-                        <div class="cmsg right">
-                            <div class="cav"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23b8a09c'/%3E%3C/svg%3E" alt="cav2"></div>
-                            <div class="cbubble" contenteditable="true">想你啦 💕</div>
-                        </div>
-                        <div class="cmsg">
-                            <div class="cav"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="cav1"></div>
-                            <div class="cbubble" contenteditable="true">一起去看星星吗 ✨</div>
-                        </div>
-                    </div>
-                    <div class="float-illus">
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='267'%3E%3Crect width='200' height='267' fill='%23dccbc2'/%3E%3Ctext x='100' y='130' text-anchor='middle' fill='%239a8a86' font-size='14' font-family='sans-serif'%3E🌙 双人插画%3C/text%3E%3C/svg%3E" alt="illus">
-                    </div>
-                </div>
-            </div>
-
-            <!-- 帖子卡片 -->
-            <div class="p3-post">
-                <div class="quote" contenteditable="true">宇宙在你沉睡时消失不见，但爱是秩序外的一瞬间</div>
-                <div class="actions">
-                    <span contenteditable="true">❤️ 66</span>
-                    <span contenteditable="true">💬 33</span>
-                </div>
-            </div>
-
-            <!-- 底部输入栏已删除（无 .p3-footer） -->
-            <div class="beauty-kaomoji-deco">(｡♡‿♡｡)  ✧  (◕‿◕)  ♡  (˘▽˘)っ</div>
-        </div>
-    `;
-
-    // ----- 初始化主函数 -----
-    function initBeautyPages() {
-        // 检查是否已存在滑动容器
-        if (document.getElementById('beauty-slider-wrapper')) return;
-
-        const header = document.querySelector('.header');
-        const mainChat = document.querySelector('.main-chat-area');
-        if (!header || !mainChat) {
-            console.warn('未找到 .header 或 .main-chat-area，无法构建滑动页面');
+    // =============================================
+    // 顶部栏布局
+    // =============================================
+    function modifyHeaderLayout() {
+        var headerInner = document.querySelector('.header-inner');
+        if (!headerInner) {
+            setTimeout(modifyHeaderLayout, 500);
             return;
         }
 
-        // 创建滑动容器
-        const wrapper = document.createElement('div');
-        wrapper.id = 'beauty-slider-wrapper';
+        if (headerInner.dataset.beautyModified === 'true') return;
+        headerInner.dataset.beautyModified = 'true';
 
-        // 创建三个页面
-        const page1 = document.createElement('div');
-        page1.className = 'beauty-page';
-        page1.id = 'beauty-page-chat';
-        // 将 header 和 mainChat 移入 page1（保持原有样式）
-        const parent = header.parentNode;
-        parent.removeChild(header);
-        parent.removeChild(mainChat);
-        page1.appendChild(header);
-        page1.appendChild(mainChat);
+        var userInfos = headerInner.querySelectorAll('.user-info');
+        if (userInfos.length < 2) return;
 
-        // 页面2
-        const page2 = document.createElement('div');
-        page2.className = 'beauty-page';
-        page2.id = 'beauty-page-xiaohui';
-        page2.innerHTML = page2HTML;
+        var leftUser = userInfos[0];
+        var rightUser = userInfos[1];
 
-        // 页面3
-        const page3 = document.createElement('div');
-        page3.className = 'beauty-page';
-        page3.id = 'beauty-page-66';
-        page3.innerHTML = page3HTML;
+        function restructureUser(userEl, isLeft) {
+            var nameEl = userEl.querySelector('.username');
+            var avatarContainer = userEl.querySelector('.avatar-container');
+            var statusEl = userEl.querySelector('.status');
 
-        wrapper.appendChild(page1);
-        wrapper.appendChild(page2);
-        wrapper.appendChild(page3);
+            if (!nameEl || !avatarContainer || !statusEl) return;
 
-        parent.insertBefore(wrapper, parent.firstChild);
+            var nameText = nameEl.textContent || '';
+            var statusText = statusEl.querySelector('span') ? statusEl.querySelector('span').textContent : '在线';
+            var avatarHTML = avatarContainer.innerHTML;
 
-        // 注入样式
-        const styleEl = document.createElement('style');
-        styleEl.textContent = styles;
-        document.head.appendChild(styleEl);
+            userEl.innerHTML = '';
+            userEl.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
 
-        // ----- 绑定页面2交互 -----
-        const memorialInput = document.getElementById('p2-memorial-date');
-        const daysDisplay = document.getElementById('p2-days-count');
-        if (memorialInput && daysDisplay) {
-            function updateP2Days() {
-                const val = memorialInput.value;
-                if (!val) { daysDisplay.innerHTML = '0 <small>天</small>'; return; }
-                const start = new Date(val);
-                const now = new Date();
-                const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-                const display = diff > 0 ? diff : 0;
-                daysDisplay.innerHTML = display + ' <small>天</small>';
-                localStorage.setItem('p2-memorial-date', val);
-            }
-            const saved = localStorage.getItem('p2-memorial-date');
-            if (saved) {
-                memorialInput.value = saved;
+            var avatarWrap = document.createElement('div');
+            avatarWrap.style.cssText = 'width:32px;height:32px;flex-shrink:0;border-radius:50%;overflow:hidden;background:rgba(var(--accent-color-rgb,224,105,138),0.15);display:flex;align-items:center;justify-content:center;';
+            avatarWrap.innerHTML = avatarHTML;
+            var img = avatarWrap.querySelector('img');
+            if (img) {
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
             } else {
-                const d = new Date();
-                d.setFullYear(d.getFullYear() - 1);
-                memorialInput.value = d.toISOString().slice(0, 10);
-            }
-            updateP2Days();
-            memorialInput.addEventListener('change', updateP2Days);
-        }
-
-        // 页面2 音乐播放
-        const playBtn2 = document.getElementById('p2-play-btn-2');
-        let isPlaying2 = false;
-        let audioCtx2 = null, osc2 = null, gain2 = null;
-        if (playBtn2) {
-            playBtn2.addEventListener('click', function() {
-                if (!audioCtx2) {
-                    audioCtx2 = new(window.AudioContext || window.webkitAudioContext)();
-                }
-                if (isPlaying2) {
-                    if (osc2) { osc2.stop(); osc2 = null; }
-                    if (gain2) { gain2.disconnect(); gain2 = null; }
-                    playBtn2.textContent = '▶';
-                    isPlaying2 = false;
+                var icon = avatarWrap.querySelector('i');
+                if (icon) {
+                    icon.style.cssText = 'font-size:16px;color:var(--text-secondary);';
                 } else {
-                    try {
-                        osc2 = audioCtx2.createOscillator();
-                        gain2 = audioCtx2.createGain();
-                        osc2.type = 'sine';
-                        osc2.frequency.value = 440;
-                        gain2.gain.value = 0.12;
-                        osc2.connect(gain2);
-                        gain2.connect(audioCtx2.destination);
-                        osc2.start();
-                        playBtn2.textContent = '⏹';
-                        isPlaying2 = true;
-                        setTimeout(() => {
-                            if (isPlaying2) {
-                                if (osc2) { osc2.stop(); osc2 = null; }
-                                if (gain2) { gain2.disconnect(); gain2 = null; }
-                                playBtn2.textContent = '▶';
-                                isPlaying2 = false;
-                            }
-                        }, 5000);
-                    } catch (e) {
-                        playBtn2.textContent = '▶';
-                        isPlaying2 = false;
-                        alert('需要用户交互才能播放音频，点击页面任意位置后重试～');
-                    }
+                    avatarWrap.innerHTML = '<i class="fas fa-user" style="font-size:16px;color:var(--text-secondary);"></i>';
                 }
-            });
+            }
+            userEl.appendChild(avatarWrap);
+
+            var infoWrap = document.createElement('div');
+            infoWrap.style.cssText = 'display:flex;flex-direction:column;line-height:1.2;';
+
+            var nameClone = document.createElement('div');
+            nameClone.className = 'username';
+            nameClone.style.cssText = 'font-size:14px;font-weight:600;color:var(--text-primary);';
+            nameClone.textContent = nameText;
+            infoWrap.appendChild(nameClone);
+
+            var statusClone = document.createElement('div');
+            statusClone.className = 'status';
+            statusClone.style.cssText = 'font-size:10px;color:var(--text-secondary);opacity:0.7;';
+            statusClone.textContent = statusText;
+            infoWrap.appendChild(statusClone);
+
+            userEl.appendChild(infoWrap);
+
+            if (!isLeft) {
+                userEl.style.marginLeft = 'auto';
+            }
         }
 
-        // ----- 美化面板（入口在高级功能） -----
-        const panel = document.createElement('div');
-        panel.id = 'beauty-settings-panel';
-        panel.innerHTML = `
-            <div class="beauty-settings-box">
-                <h2><span>🎨</span> 全局美化</h2>
-                <div class="beauty-setting-group">
-                    <label>🎨 背景颜色</label>
-                    <input type="color" id="beauty-bg-color" value="#f5efe9">
-                </div>
-                <div class="beauty-setting-group">
-                    <label>📝 文字颜色</label>
-                    <input type="color" id="beauty-text-color" value="#3d2c2a">
-                </div>
-                <div class="beauty-setting-group">
-                    <label>📦 卡片透明度</label>
-                    <input type="text" id="beauty-card-opacity" placeholder="0.6 ~ 1.0" value="0.85">
-                </div>
-                <div class="beauty-setting-group">
-                    <label>🖼️ 页面2 背景图 (URL)</label>
-                    <input type="text" id="beauty-bg-url-page2" placeholder="页面2背景图链接" value="">
-                </div>
-                <div class="beauty-setting-group">
-                    <label>🖼️ 页面3 背景图 (URL)</label>
-                    <input type="text" id="beauty-bg-url-page3" placeholder="页面3背景图链接" value="">
-                </div>
-                <div class="beauty-setting-group">
-                    <label>📂 上传自定义图片 (用于任意位置)</label>
-                    <div class="file-wrap">
-                        <input type="file" id="beauty-custom-file" accept="image/*">
-                        <button id="beauty-apply-file-btn">应用</button>
+        restructureUser(leftUser, true);
+        restructureUser(rightUser, false);
+
+        headerInner.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 12px;';
+    }
+
+    // =============================================
+    // 初始化页面
+    // =============================================
+    function createBeautyPage(index) {
+        var page = document.createElement('div');
+        page.className = 'beauty-page beauty-page-' + index;
+        page.style.cssText = `
+            flex: 0 0 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+
+        var bgLayer = document.createElement('div');
+        bgLayer.className = 'beauty-bg-layer';
+        bgLayer.style.cssText = `
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0;
+            transition: opacity 0.5s ease;
+            opacity: 0;
+            cursor: pointer;
+        `;
+        bgLayer.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBeautySettings(index);
+        });
+        page.appendChild(bgLayer);
+
+        var card = document.createElement('div');
+        card.className = 'beauty-card';
+        card.style.cssText = `
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 16px;
+            padding: 16px 20px;
+            width: 100%;
+            max-width: 360px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        `;
+
+        var tagContainer = document.createElement('div');
+        tagContainer.className = 'beauty-tags';
+        tagContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        `;
+        card.appendChild(tagContainer);
+
+        page.appendChild(card);
+        updateBeautyPage(index);
+
+        return page;
+    }
+
+    function initBeautyPages() {
+        config = _getConfig();
+
+        if (document.getElementById('beauty-pages-wrapper')) {
+            return;
+        }
+
+        var chatContainer = document.querySelector('.main-chat-area');
+        if (!chatContainer) {
+            console.warn('[美化页面] 找不到聊天容器');
+            return;
+        }
+
+        var wrapper = document.createElement('div');
+        wrapper.id = 'beauty-pages-wrapper';
+        wrapper.style.cssText = `
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: pan-y;
+        `;
+
+        var track = document.createElement('div');
+        track.id = 'beauty-pages-track';
+        track.style.cssText = `
+            display: flex;
+            height: 100%;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
+        `;
+
+        var chatPage = document.createElement('div');
+        chatPage.className = 'beauty-page beauty-page-chat';
+        chatPage.style.cssText = `
+            flex: 0 0 100%;
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        `;
+        while (chatContainer.firstChild) {
+            chatPage.appendChild(chatContainer.firstChild);
+        }
+        track.appendChild(chatPage);
+
+        var beautyPage1 = createBeautyPage(1);
+        track.appendChild(beautyPage1);
+
+        var beautyPage2 = createBeautyPage(2);
+        track.appendChild(beautyPage2);
+
+        wrapper.appendChild(track);
+        chatContainer.appendChild(wrapper);
+
+        addIndicator(wrapper);
+        goToPage(config.currentIndex || 0, false);
+        bindTouchEvents(wrapper, track);
+
+        window.beautyPages = {
+            goToPage: goToPage,
+            openSettings: openBeautySettings,
+            getConfig: function() { return config; },
+            refresh: refreshAllPages
+        };
+
+        console.log('[美化页面] 已初始化');
+    }
+
+    // =============================================
+    // 设置面板
+    // =============================================
+    function openBeautySettings(pageIndex) {
+        var currentPage = (pageIndex !== undefined) ? pageIndex : (config.currentIndex || 0);
+        if (currentPage === 0) currentPage = 1;
+
+        var old = document.getElementById('beauty-settings-modal');
+        if (old) old.remove();
+
+        var wrap = document.createElement('div');
+        wrap.id = 'beauty-settings-modal';
+        wrap.style.cssText = `
+            position: fixed; inset: 0; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        `;
+
+        var inner = document.createElement('div');
+        inner.style.cssText = `
+            background: var(--primary-bg);
+            border-radius: 24px; padding: 24px;
+            width: min(440px, 92vw);
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+        `;
+
+        var header = document.createElement('div');
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
+        header.innerHTML = `
+            <span style="font-size:18px;font-weight:700;color:var(--text-primary);">🖼️ 美化页面设置</span>
+            <button id="beauty-settings-close" style="background:none;border:none;font-size:20px;color:var(--text-secondary);cursor:pointer;">✕</button>
+        `;
+        inner.appendChild(header);
+
+        var pageSelect = document.createElement('div');
+        pageSelect.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;';
+        var pageOptions = ['💬 聊天', '🌸 阿晏&小回', '🌙 阿晏&66'];
+        for (var i = 0; i < PAGE_COUNT; i++) {
+            var btn = document.createElement('button');
+            btn.textContent = pageOptions[i];
+            btn.style.cssText = `
+                flex:1; padding:8px 4px; border:2px solid ${i === currentPage ? 'var(--accent-color)' : 'var(--border-color)'};
+                border-radius:10px; background:${i === currentPage ? 'rgba(var(--accent-color-rgb),0.1)' : 'var(--secondary-bg)'};
+                color:${i === currentPage ? 'var(--accent-color)' : 'var(--text-secondary)'};
+                font-size:11px; font-weight:${i === currentPage ? '700' : '400'};
+                cursor:pointer; font-family:var(--font-family);
+            `;
+            btn.onclick = (function(idx) {
+                return function() {
+                    goToPage(idx, true);
+                    var modal = document.getElementById('beauty-settings-modal');
+                    if (modal) modal.remove();
+                    openBeautySettings(idx);
+                };
+            })(i);
+            pageSelect.appendChild(btn);
+        }
+        inner.appendChild(pageSelect);
+
+        for (var pi = 1; pi < PAGE_COUNT; pi++) {
+            var pageData = config.pages[pi];
+            if (pageData.type !== 'beauty') continue;
+
+            var section = document.createElement('div');
+            section.id = 'beauty-settings-section-' + pi;
+            section.style.cssText = `
+                padding: 12px 0;
+                border-bottom: 1px solid rgba(var(--border-color-rgb),0.1);
+                ${pi !== currentPage ? 'display:none;' : ''}
+            `;
+
+            var tagsHtml = '';
+            var tags = pageData.tags || [];
+            tags.forEach(function(tag, idx) {
+                tagsHtml += `
+                    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                        <input class="beauty-tag-key" data-page="${pi}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                        <input class="beauty-tag-value" data-page="${pi}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                        <button class="beauty-tag-remove" data-page="${pi}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
+                    </div>
+                `;
+            });
+
+            section.innerHTML = `
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px;">${pageOptions[pi]}</div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">背景图</label>
+                    <div style="display:flex;gap:8px;">
+                        <button class="beauty-bg-upload" data-page="${pi}" style="flex:1;padding:8px;border:1.5px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">📤 上传</button>
+                        <button class="beauty-bg-url" data-page="${pi}" style="flex:1;padding:8px;border:1.5px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">🔗 URL</button>
+                        <button class="beauty-bg-clear" data-page="${pi}" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:#ff6b6b;font-size:12px;cursor:pointer;font-family:var(--font-family);">清除</button>
+                    </div>
+                    <input type="file" class="beauty-bg-file" data-page="${pi}" accept="image/*" style="display:none;">
+                    <div class="beauty-bg-preview" data-page="${pi}" style="display:${pageData.bgImage ? 'block' : 'none'};margin-top:6px;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);">
+                        <img src="${pageData.bgImage || ''}" style="width:100%;max-height:80px;object-fit:cover;display:block;">
                     </div>
                 </div>
-                <div style="font-size:12px;color:#7a6a66;opacity:0.5;margin:-6px 0 14px 0;padding-left:4px;">
-                    💡 点击页面中的文字可直接编辑 (contenteditable)
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">标签列表</label>
+                    <div id="beauty-tags-container-${pi}" style="display:flex;flex-direction:column;gap:2px;">
+                        ${tagsHtml}
+                    </div>
+                    <button class="beauty-tag-add" data-page="${pi}" style="margin-top:6px;padding:6px 12px;border:1px dashed var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">+ 添加标签</button>
                 </div>
-                <button class="beauty-settings-close" id="beauty-settings-close">✨ 完成</button>
-            </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">标签颜色</label>
+                        <input class="beauty-color-input" data-page="${pi}" data-key="tagColor" type="color" value="${pageData.tagColor || 'rgba(255,255,255,0.85)'}" style="width:100%;height:32px;border:1px solid var(--border-color);border-radius:6px;padding:2px;background:var(--secondary-bg);cursor:pointer;">
+                    </div>
+                    <div style="flex:1;min-width:80px;">
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:2px;">标签大小</label>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input class="beauty-size-input" data-page="${pi}" data-key="tagSize" type="range" min="10" max="20" value="${pageData.tagSize || 14}" style="flex:1;">
+                            <span class="beauty-size-value" style="font-size:12px;color:var(--text-secondary);min-width:32px;">${pageData.tagSize || 14}px</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            inner.appendChild(section);
+        }
+
+        var saveBtn = document.createElement('button');
+        saveBtn.textContent = '💾 保存所有设置';
+        saveBtn.style.cssText = `
+            width:100%; padding:12px; border:none; border-radius:12px;
+            background:var(--accent-color); color:#fff;
+            font-size:14px; font-weight:700; cursor:pointer;
+            margin-top:12px; font-family:var(--font-family);
         `;
-        document.body.appendChild(panel);
+        saveBtn.onclick = function() {
+            saveAllSettings();
+            wrap.remove();
+            _notify('设置已保存 ✨', 'success');
+        };
+        inner.appendChild(saveBtn);
 
-        // 绑定面板事件
-        const panelEl = document.getElementById('beauty-settings-panel');
-        const closeBtn = document.getElementById('beauty-settings-close');
-        const bgColorInput = document.getElementById('beauty-bg-color');
-        const textColorInput = document.getElementById('beauty-text-color');
-        const cardOpacityInput = document.getElementById('beauty-card-opacity');
-        const bgUrlPage2 = document.getElementById('beauty-bg-url-page2');
-        const bgUrlPage3 = document.getElementById('beauty-bg-url-page3');
-        const customFileInput = document.getElementById('beauty-custom-file');
-        const applyFileBtn = document.getElementById('beauty-apply-file-btn');
+        wrap.appendChild(inner);
+        document.body.appendChild(wrap);
 
-        function applyBeautySettings() {
-            const bgColor = bgColorInput.value;
-            const textColor = textColorInput.value;
-            const opacity = parseFloat(cardOpacityInput.value) || 0.85;
-            const bg2 = bgUrlPage2.value.trim();
-            const bg3 = bgUrlPage3.value.trim();
+        document.getElementById('beauty-settings-close').onclick = function() { wrap.remove(); };
+        wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
 
-            document.querySelectorAll('.beauty-page').forEach(page => {
-                page.style.setProperty('--beauty-bg', bgColor);
-                page.style.setProperty('--text', textColor);
-                page.style.setProperty('--card-bg', `rgba(255,248,242,${Math.min(opacity,1)})`);
-            });
+        bindSettingsEvents();
+    }
 
-            const p2 = document.getElementById('beauty-page-xiaohui');
-            if (p2) {
-                if (bg2) {
-                    p2.style.backgroundImage = `url(${bg2})`;
-                    p2.style.backgroundSize = 'cover';
-                    p2.style.backgroundPosition = 'center';
-                    p2.style.backgroundAttachment = 'fixed';
-                } else {
-                    p2.style.backgroundImage = 'none';
-                    p2.style.backgroundSize = 'auto';
-                }
-            }
-
-            const p3 = document.getElementById('beauty-page-66');
-            if (p3) {
-                if (bg3) {
-                    p3.style.backgroundImage = `url(${bg3})`;
-                    p3.style.backgroundSize = 'cover';
-                    p3.style.backgroundPosition = 'center';
-                    p3.style.backgroundAttachment = 'fixed';
-                } else {
-                    p3.style.backgroundImage = 'none';
-                    p3.style.backgroundSize = 'auto';
-                }
-            }
-
-            localStorage.setItem('beauty-bg-color', bgColor);
-            localStorage.setItem('beauty-text-color', textColor);
-            localStorage.setItem('beauty-card-opacity', String(opacity));
-            localStorage.setItem('beauty-bg-url-page2', bg2);
-            localStorage.setItem('beauty-bg-url-page3', bg3);
-        }
-
-        function loadBeautySettings() {
-            const bgColor = localStorage.getItem('beauty-bg-color') || '#f5efe9';
-            const textColor = localStorage.getItem('beauty-text-color') || '#3d2c2a';
-            const opacity = localStorage.getItem('beauty-card-opacity') || '0.85';
-            const bg2 = localStorage.getItem('beauty-bg-url-page2') || '';
-            const bg3 = localStorage.getItem('beauty-bg-url-page3') || '';
-            bgColorInput.value = bgColor;
-            textColorInput.value = textColor;
-            cardOpacityInput.value = opacity;
-            bgUrlPage2.value = bg2;
-            bgUrlPage3.value = bg3;
-            applyBeautySettings();
-        }
-
-        closeBtn.addEventListener('click', function() {
-            applyBeautySettings();
-            panelEl.classList.remove('open');
-        });
-
-        [bgColorInput, textColorInput, cardOpacityInput, bgUrlPage2, bgUrlPage3].forEach(el => {
-            el.addEventListener('input', applyBeautySettings);
-            el.addEventListener('change', applyBeautySettings);
-        });
-
-        let uploadedData = null;
-        customFileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                uploadedData = ev.target.result;
-                alert('✅ 图片已加载！点击「应用」替换当前页面的图片占位。');
+    function bindSettingsEvents() {
+        document.querySelectorAll('.beauty-bg-upload').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                var fileInput = document.querySelector('.beauty-bg-file[data-page="' + page + '"]');
+                if (fileInput) fileInput.click();
             };
-            reader.readAsDataURL(file);
+        });
+        document.querySelectorAll('.beauty-bg-file').forEach(function(input) {
+            input.onchange = function(e) {
+                var page = parseInt(this.dataset.page);
+                var file = e.target.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var data = ev.target.result;
+                    config.pages[page].bgImage = data;
+                    _saveConfig();
+                    updateBeautyPage(page);
+                    var preview = document.querySelector('.beauty-bg-preview[data-page="' + page + '"]');
+                    var img = preview ? preview.querySelector('img') : null;
+                    if (preview && img) {
+                        img.src = data;
+                        preview.style.display = 'block';
+                    }
+                    _notify('背景图已加载', 'success', 1000);
+                };
+                reader.readAsDataURL(file);
+                this.value = '';
+            };
+        });
+        document.querySelectorAll('.beauty-bg-url').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                var url = prompt('请输入图片URL地址：');
+                if (url && url.trim()) {
+                    config.pages[page].bgImage = url.trim();
+                    _saveConfig();
+                    updateBeautyPage(page);
+                    var preview = document.querySelector('.beauty-bg-preview[data-page="' + page + '"]');
+                    var img = preview ? preview.querySelector('img') : null;
+                    if (preview && img) {
+                        img.src = url.trim();
+                        preview.style.display = 'block';
+                    }
+                    _notify('背景图已更新', 'success', 1000);
+                }
+            };
+        });
+        document.querySelectorAll('.beauty-bg-clear').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                if (!confirm('确定清除背景图吗？')) return;
+                config.pages[page].bgImage = '';
+                _saveConfig();
+                updateBeautyPage(page);
+                var preview = document.querySelector('.beauty-bg-preview[data-page="' + page + '"]');
+                if (preview) preview.style.display = 'none';
+                _notify('背景已清除', 'info');
+            };
         });
 
-        applyFileBtn.addEventListener('click', function() {
-            if (!uploadedData) {
-                alert('请先选择一张图片上传～');
-                return;
-            }
-            const imgs = document.querySelectorAll('#beauty-slider-wrapper img');
-            let count = 0;
-            imgs.forEach(img => {
-                const src = img.src || '';
-                if (src.includes('data:image/svg+xml') || src.includes('svg')) {
-                    img.src = uploadedData;
-                    count++;
+        document.querySelectorAll('.beauty-tag-add').forEach(function(btn) {
+            btn.onclick = function() {
+                var page = parseInt(this.dataset.page);
+                var tags = config.pages[page].tags || [];
+                tags.push({ key: '新标签', value: '内容' });
+                config.pages[page].tags = tags;
+                _saveConfig();
+                var container = document.getElementById('beauty-tags-container-' + page);
+                if (container) {
+                    var newHtml = '';
+                    tags.forEach(function(tag, idx) {
+                        newHtml += `
+                            <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                                <input class="beauty-tag-key" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                <input class="beauty-tag-value" data-page="${page}" data-idx="${idx}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                <button class="beauty-tag-remove" data-page="${page}" data-idx="${idx}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = newHtml;
+                    bindTagEvents();
                 }
-            });
-            alert(`✨ 已替换 ${count} 个图片占位！`);
+                updateBeautyPage(page);
+                _notify('标签已添加', 'success', 1000);
+            };
         });
 
-        loadBeautySettings();
-
-        // ----- 在高级功能面板中添加“页面美化”入口 -----
-        function addBeautyEntryToAdvanced() {
-            const advancedModal = document.getElementById('advanced-modal');
-            if (!advancedModal) {
-                setTimeout(addBeautyEntryToAdvanced, 500);
-                return;
-            }
-            const list = advancedModal.querySelector('.settings-item-list');
-            if (!list) {
-                setTimeout(addBeautyEntryToAdvanced, 500);
-                return;
-            }
-            if (list.querySelector('.beauty-entry-item')) return;
-            const item = document.createElement('div');
-            item.className = 'settings-item beauty-entry-item';
-            item.style.cursor = 'pointer';
-            item.innerHTML = `<i class="fas fa-palette"></i><span>页面美化</span>`;
-            item.addEventListener('click', function() {
-                const advModal = document.getElementById('advanced-modal');
-                if (advModal && typeof hideModal === 'function') {
-                    hideModal(advModal);
-                }
-                const panel = document.getElementById('beauty-settings-panel');
-                if (panel) panel.classList.add('open');
+        function bindTagEvents() {
+            document.querySelectorAll('.beauty-tag-key').forEach(function(input) {
+                input.onchange = function() {
+                    var page = parseInt(this.dataset.page);
+                    var idx = parseInt(this.dataset.idx);
+                    var tags = config.pages[page].tags || [];
+                    if (tags[idx]) {
+                        tags[idx].key = this.value.trim() || '标签';
+                        _saveConfig();
+                        updateBeautyPage(page);
+                    }
+                };
             });
-            list.appendChild(item);
+            document.querySelectorAll('.beauty-tag-value').forEach(function(input) {
+                input.onchange = function() {
+                    var page = parseInt(this.dataset.page);
+                    var idx = parseInt(this.dataset.idx);
+                    var tags = config.pages[page].tags || [];
+                    if (tags[idx]) {
+                        tags[idx].value = this.value.trim() || '内容';
+                        _saveConfig();
+                        updateBeautyPage(page);
+                    }
+                };
+            });
+            document.querySelectorAll('.beauty-tag-remove').forEach(function(btn) {
+                btn.onclick = function() {
+                    var page = parseInt(this.dataset.page);
+                    var idx = parseInt(this.dataset.idx);
+                    var tags = config.pages[page].tags || [];
+                    if (idx >= 0 && idx < tags.length) {
+                        tags.splice(idx, 1);
+                        config.pages[page].tags = tags;
+                        _saveConfig();
+                        var container = document.getElementById('beauty-tags-container-' + page);
+                        if (container) {
+                            var newHtml = '';
+                            tags.forEach(function(tag, i) {
+                                newHtml += `
+                                    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                                        <input class="beauty-tag-key" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.key)}" placeholder="标签名" style="flex:1;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                        <input class="beauty-tag-value" data-page="${page}" data-idx="${i}" type="text" value="${_esc(tag.value)}" placeholder="内容" style="flex:1.5;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--secondary-bg);color:var(--text-primary);font-size:12px;font-family:var(--font-family);">
+                                        <button class="beauty-tag-remove" data-page="${page}" data-idx="${i}" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>
+                                    </div>
+                                `;
+                            });
+                            container.innerHTML = newHtml;
+                            bindTagEvents();
+                        }
+                        updateBeautyPage(page);
+                        _notify('标签已删除', 'info');
+                    }
+                };
+            });
         }
-
-        setTimeout(addBeautyEntryToAdvanced, 300);
-
-        console.log('🌸 页面美化模块已加载：聊天页 | 阿晏&小回 | 阿晏&66');
-        console.log('💡 页面美化入口在高级功能中，点击文字可编辑。');
+        bindTagEvents();
     }
 
-    // ----- 执行初始化 -----
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initBeautyPages);
-    } else {
-        initBeautyPages();
+    function saveAllSettings() {
+        _saveConfig();
+        refreshAllPages();
     }
+
+    // =============================================
+    // 设置入口
+    // =============================================
+    function addSettingsEntry() {
+        var observer = new MutationObserver(function() {
+            var advancedModal = document.getElementById('advanced-modal');
+            if (advancedModal && advancedModal.style.display !== 'none') {
+                var list = advancedModal.querySelector('.settings-item-list');
+                if (list && !document.getElementById('beauty-settings-entry')) {
+                    var entry = document.createElement('div');
+                    entry.id = 'beauty-settings-entry';
+                    entry.className = 'settings-item';
+                    entry.style.cssText = 'cursor:pointer;';
+                    entry.innerHTML = '<i class="fas fa-palette"></i><span>美化页面</span>';
+                    entry.onclick = function() {
+                        var adv = document.getElementById('advanced-modal');
+                        if (adv && typeof hideModal === 'function') hideModal(adv);
+                        setTimeout(function() {
+                            openBeautySettings();
+                        }, 300);
+                    };
+                    list.appendChild(entry);
+                }
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // =============================================
+    // 初始化
+    // =============================================
+    function init() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initBeautyPages, 500);
+                setTimeout(addSettingsEntry, 800);
+                setTimeout(modifyHeaderLayout, 1200);
+                setTimeout(modifyHeaderLayout, 2500);
+            });
+        } else {
+            setTimeout(initBeautyPages, 500);
+            setTimeout(addSettingsEntry, 800);
+            setTimeout(modifyHeaderLayout, 1200);
+            setTimeout(modifyHeaderLayout, 2500);
+        }
+    }
+
+    init();
+
+    console.log('[美化页面] 模块已加载（双击解锁，长按拖动）');
 })();
