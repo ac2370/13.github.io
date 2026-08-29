@@ -1,4 +1,4 @@
-// beauty-pages.js – 聊天框为第一页，右滑新增两页（阿晏&小回 / 阿晏&66），独立背景图，入口在高级功能
+// beauty-pages.js – 聊天框仅第一页，页面2/3无底部输入框，大矩形缩小，布局对齐，双人插画与对话行平齐
 (function() {
     'use strict';
 
@@ -29,6 +29,7 @@
             overflow-x: hidden;
             background: var(--beauty-bg, #f5efe9);
             box-sizing: border-box;
+            padding: 0 16px 20px;
         }
         .beauty-page::-webkit-scrollbar {
             width: 3px;
@@ -46,6 +47,12 @@
         #beauty-page-chat .main-chat-area {
             width: 100% !important;
             max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        /* 确保聊天页的输入区域正常显示 */
+        #beauty-page-chat .input-area-wrapper {
+            width: 100% !important;
         }
 
         /* 卡片样式（新增页面使用） */
@@ -309,14 +316,14 @@
             margin-left: auto;
             align-self: center;
         }
-        /* 缩短大矩形宽度，居中 */
+        /* 大矩形进一步缩小（宽度 70%，最大宽度 320px） */
         .p2-bigimg-wrapper {
             display: flex;
             justify-content: center;
         }
         .p2-bigimg {
-            width: 85%;
-            max-width: 400px;
+            width: 70%;
+            max-width: 320px;
             aspect-ratio: 16/9;
             border-radius: 16px;
             overflow: hidden;
@@ -436,10 +443,12 @@
             opacity: 0.6;
             margin-top: 2px;
         }
-        /* 搜索栏已删除，不再需要样式 */
+
+        /* 页面3 模拟聊天区（双人对话 + 插画） */
         .p3-chat-area {
             position: relative;
             padding: 6px 0;
+            min-height: 160px; /* 保证插画显示 */
         }
         .p3-chat-area .chat-flow {
             display: flex;
@@ -483,10 +492,12 @@
             border-radius: 18px 18px 4px 18px;
             background: rgba(212, 165, 165, 0.18);
         }
+        /* 双人插画 – 与对话行平齐（垂直居中于两行对话） */
         .p3-chat-area .float-illus {
             position: absolute;
             right: 0;
-            top: 20%;
+            top: 50%;
+            transform: translateY(-50%);
             width: 38%;
             aspect-ratio: 3/4;
             border-radius: 24px;
@@ -494,13 +505,14 @@
             box-shadow: 0 12px 40px rgba(0,0,0,0.08);
             border: 3px solid rgba(255,255,255,0.6);
             background: #e8ddd6;
-            transform: translateX(6px);
         }
         .p3-chat-area .float-illus img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
+        /* 帖子卡片（保留） */
         .p3-post {
             padding: 14px 16px;
             background: rgba(255, 248, 242, 0.4);
@@ -542,43 +554,9 @@
             align-items: center;
             gap: 4px;
         }
-        .p3-footer {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 4px 0 2px;
-        }
-        .p3-footer .fav {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            border: 2px solid rgba(255,255,255,0.4);
-            background: #e8ddd6;
-        }
-        .p3-footer .fav img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .p3-footer .finp {
-            flex: 1;
-            padding: 10px 16px;
-            border-radius: 30px;
-            border: 1px solid #e8ddd6;
-            background: rgba(255, 248, 242, 0.4);
-            backdrop-filter: blur(4px);
-            font-size: 13px;
-            font-family: inherit;
-            color: #3d2c2a;
-            outline: none;
-            transition: 0.25s;
-        }
-        .p3-footer .finp:focus {
-            border-color: #d4a5a5;
-            box-shadow: 0 0 0 4px rgba(212,165,165,0.08);
-        }
+
+        /* 页面3 无底部输入栏（已删除） */
+
         .beauty-kaomoji-deco {
             font-size: 12px;
             opacity: 0.15;
@@ -633,10 +611,10 @@
             }
             .p3-chat-area .float-illus {
                 width: 30%;
-                top: 30%;
             }
             .p2-bigimg {
-                width: 95%;
+                width: 80%;
+                max-width: 260px;
             }
         }
         @media (max-width: 380px) {
@@ -648,6 +626,10 @@
             }
             .p2-top .right .item .sub {
                 font-size: 10px;
+            }
+            .p2-bigimg {
+                width: 90%;
+                max-width: 200px;
             }
         }
 
@@ -841,7 +823,7 @@
                 </div>
             </div>
 
-            <!-- 大矩形图片（已缩短） -->
+            <!-- 大矩形图片（已缩小至70%，max-width:320px） -->
             <div class="beauty-card" style="padding:12px;">
                 <div class="p2-bigimg-wrapper">
                     <div class="p2-bigimg">
@@ -887,9 +869,7 @@
                 </div>
             </div>
 
-            <!-- 搜索栏已删除 -->
-
-            <!-- 聊天对话区 -->
+            <!-- 模拟聊天区（双人对话 + 插画，插画垂直居中） -->
             <div class="beauty-card" style="padding:14px 14px 18px;position:relative;overflow:visible;">
                 <div class="p3-chat-area">
                     <div class="chat-flow">
@@ -921,21 +901,16 @@
                 </div>
             </div>
 
-            <!-- 底部输入栏 -->
-            <div class="p3-footer">
-                <div class="fav"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23d4a5a5'/%3E%3C/svg%3E" alt="footer av"></div>
-                <input class="finp" placeholder="输入你的心意..." value="未定义">
-            </div>
+            <!-- 底部输入栏已删除（无 .p3-footer） -->
             <div class="beauty-kaomoji-deco">(｡♡‿♡｡)  ✧  (◕‿◕)  ♡  (˘▽˘)っ</div>
         </div>
     `;
 
     // ----- 初始化主函数 -----
     function initBeautyPages() {
-        // 检查是否已存在滑动容器，避免重复执行
+        // 检查是否已存在滑动容器
         if (document.getElementById('beauty-slider-wrapper')) return;
 
-        // 获取原有聊天界面的关键元素
         const header = document.querySelector('.header');
         const mainChat = document.querySelector('.main-chat-area');
         if (!header || !mainChat) {
@@ -953,20 +928,18 @@
         page1.id = 'beauty-page-chat';
         // 将 header 和 mainChat 移入 page1（保持原有样式）
         const parent = header.parentNode;
-        const headerClone = header;
-        const mainChatClone = mainChat;
-        parent.removeChild(headerClone);
-        parent.removeChild(mainChatClone);
-        page1.appendChild(headerClone);
-        page1.appendChild(mainChatClone);
+        parent.removeChild(header);
+        parent.removeChild(mainChat);
+        page1.appendChild(header);
+        page1.appendChild(mainChat);
 
-        // 创建页面2
+        // 页面2
         const page2 = document.createElement('div');
         page2.className = 'beauty-page';
         page2.id = 'beauty-page-xiaohui';
         page2.innerHTML = page2HTML;
 
-        // 创建页面3
+        // 页面3
         const page3 = document.createElement('div');
         page3.className = 'beauty-page';
         page3.id = 'beauty-page-66';
@@ -983,9 +956,7 @@
         styleEl.textContent = styles;
         document.head.appendChild(styleEl);
 
-        // ----- 绑定新增页面的交互功能 -----
-
-        // 页面2 纪念日
+        // ----- 绑定页面2交互 -----
         const memorialInput = document.getElementById('p2-memorial-date');
         const daysDisplay = document.getElementById('p2-days-count');
         if (memorialInput && daysDisplay) {
@@ -1054,8 +1025,7 @@
             });
         }
 
-        // ----- 全局美化面板（独立，通过高级功能打开） -----
-        // 创建面板（不创建按钮）
+        // ----- 美化面板（入口在高级功能） -----
         const panel = document.createElement('div');
         panel.id = 'beauty-settings-panel';
         panel.innerHTML = `
@@ -1114,14 +1084,12 @@
             const bg2 = bgUrlPage2.value.trim();
             const bg3 = bgUrlPage3.value.trim();
 
-            // 应用到所有页面
             document.querySelectorAll('.beauty-page').forEach(page => {
                 page.style.setProperty('--beauty-bg', bgColor);
                 page.style.setProperty('--text', textColor);
                 page.style.setProperty('--card-bg', `rgba(255,248,242,${Math.min(opacity,1)})`);
             });
 
-            // 页面2 背景
             const p2 = document.getElementById('beauty-page-xiaohui');
             if (p2) {
                 if (bg2) {
@@ -1135,7 +1103,6 @@
                 }
             }
 
-            // 页面3 背景
             const p3 = document.getElementById('beauty-page-66');
             if (p3) {
                 if (bg3) {
@@ -1149,7 +1116,6 @@
                 }
             }
 
-            // 保存
             localStorage.setItem('beauty-bg-color', bgColor);
             localStorage.setItem('beauty-text-color', textColor);
             localStorage.setItem('beauty-card-opacity', String(opacity));
@@ -1181,7 +1147,6 @@
             el.addEventListener('change', applyBeautySettings);
         });
 
-        // 自定义图片上传
         let uploadedData = null;
         customFileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -1211,14 +1176,12 @@
             alert(`✨ 已替换 ${count} 个图片占位！`);
         });
 
-        // 加载设置
         loadBeautySettings();
 
         // ----- 在高级功能面板中添加“页面美化”入口 -----
         function addBeautyEntryToAdvanced() {
             const advancedModal = document.getElementById('advanced-modal');
             if (!advancedModal) {
-                // 如果高级功能面板还没加载，稍后重试
                 setTimeout(addBeautyEntryToAdvanced, 500);
                 return;
             }
@@ -1227,30 +1190,26 @@
                 setTimeout(addBeautyEntryToAdvanced, 500);
                 return;
             }
-            // 检查是否已添加
             if (list.querySelector('.beauty-entry-item')) return;
             const item = document.createElement('div');
             item.className = 'settings-item beauty-entry-item';
             item.style.cursor = 'pointer';
             item.innerHTML = `<i class="fas fa-palette"></i><span>页面美化</span>`;
             item.addEventListener('click', function() {
-                // 关闭高级功能面板（可选）
                 const advModal = document.getElementById('advanced-modal');
                 if (advModal && typeof hideModal === 'function') {
                     hideModal(advModal);
                 }
-                // 打开美化面板
                 const panel = document.getElementById('beauty-settings-panel');
                 if (panel) panel.classList.add('open');
             });
             list.appendChild(item);
         }
 
-        // 尝试添加
         setTimeout(addBeautyEntryToAdvanced, 300);
 
-        console.log('🌸 聊天框已嵌入滑动容器，右滑可查看“阿晏&小回”和“阿晏&66”页面');
-        console.log('💡 页面美化入口已添加到高级功能中。');
+        console.log('🌸 页面美化模块已加载：聊天页 | 阿晏&小回 | 阿晏&66');
+        console.log('💡 页面美化入口在高级功能中，点击文字可编辑。');
     }
 
     // ----- 执行初始化 -----
