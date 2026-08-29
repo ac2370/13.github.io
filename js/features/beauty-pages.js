@@ -1,4 +1,4 @@
-// beauty-pages.js - 全局美化页面（指示器在红圈位置）
+// beauty-pages.js - 全局美化页面（可拖动指示器）
 (function() {
     'use strict';
 
@@ -7,6 +7,7 @@
 
     var DEFAULT_CONFIG = {
         showIndicator: true,
+        indicatorPos: null, // { left, top } 存储拖动位置
         pages: [
             { type: 'chat', label: '聊天' },
             {
@@ -59,6 +60,9 @@
 
     var config = null;
     var isAnimating = false;
+    var indicatorDragging = false;
+    var dragStartX = 0, dragStartY = 0;
+    var dragOrigLeft = 0, dragOrigTop = 0;
 
     function _getConfig() {
         try {
@@ -167,6 +171,7 @@
             }
         }
         updateIndicatorVisibility();
+        restoreIndicatorPosition();
     }
 
     function goToPage(index, animate) {
@@ -217,6 +222,34 @@
         var indicator = document.getElementById('beauty-indicator');
         if (indicator) {
             indicator.style.display = config.showIndicator ? 'flex' : 'none';
+        }
+    }
+
+    // =============================================
+    // 指示器位置存储与恢复
+    // =============================================
+    function saveIndicatorPosition(left, top) {
+        config.indicatorPos = { left: left, top: top };
+        _saveConfig();
+    }
+
+    function restoreIndicatorPosition() {
+        var indicator = document.getElementById('beauty-indicator');
+        if (!indicator) return;
+        if (config.indicatorPos) {
+            indicator.style.left = config.indicatorPos.left + 'px';
+            indicator.style.top = config.indicatorPos.top + 'px';
+            indicator.style.right = 'auto';
+            indicator.style.bottom = 'auto';
+            indicator.style.transform = 'none';
+            indicator.style.transform = 'translateX(0)';
+        } else {
+            // 默认居中底部
+            indicator.style.left = '50%';
+            indicator.style.top = 'auto';
+            indicator.style.bottom = '130px';
+            indicator.style.right = 'auto';
+            indicator.style.transform = 'translateX(-50%)';
         }
     }
 
@@ -356,25 +389,39 @@
     }
 
     // =============================================
-    // 指示器：位置在红圈处（bottom: 130px）
+    // 添加可拖动指示器
     // =============================================
     function addIndicator(wrapper) {
         var indicator = document.createElement('div');
         indicator.id = 'beauty-indicator';
         indicator.style.cssText = `
-            position: absolute;
-            bottom: 130px;
-            left: 50%;
-            transform: translateX(-50%);
+            position: fixed;
+            z-index: 1000;
             display: flex;
             gap: 8px;
-            z-index: 100;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.25);
             backdrop-filter: blur(6px);
             padding: 4px 12px;
             border-radius: 16px;
             border: 1px solid rgba(255,255,255,0.06);
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
         `;
+        // 设置初始位置（如果已存储则恢复）
+        if (config.indicatorPos) {
+            indicator.style.left = config.indicatorPos.left + 'px';
+            indicator.style.top = config.indicatorPos.top + 'px';
+            indicator.style.right = 'auto';
+            indicator.style.bottom = 'auto';
+            indicator.style.transform = 'none';
+        } else {
+            indicator.style.left = '50%';
+            indicator.style.top = 'auto';
+            indicator.style.bottom = '130px';
+            indicator.style.right = 'auto';
+            indicator.style.transform = 'translateX(-50%)';
+        }
 
         var labels = ['💬 聊天', '🌸 小回', '🌙 66'];
 
@@ -392,9 +439,12 @@
                 background: ${i === config.currentIndex ? 'var(--accent-color, #e0698a)' : 'rgba(255,255,255,0.3)'};
                 padding: 0;
                 flex-shrink: 0;
+                pointer-events: ${i === config.currentIndex ? 'auto' : 'auto'};
             `;
             dot.title = labels[i];
-            dot.addEventListener('click', function() {
+            dot.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (indicatorDragging) return;
                 var idx = parseInt(this.dataset.index);
                 if (idx !== config.currentIndex) {
                     goToPage(idx, true);
@@ -402,6 +452,74 @@
             });
             indicator.appendChild(dot);
         }
+
+        // ---- 拖动功能 ----
+        function startDrag(e) {
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+            var rect = indicator.getBoundingClientRect();
+            dragStartX = clientX - rect.left;
+            dragStartY = clientY - rect.top;
+            dragOrigLeft = rect.left;
+            dragOrigTop = rect.top;
+            indicatorDragging = false;
+            indicator.style.cursor = 'grabbing';
+            if (e.cancelable) e.preventDefault();
+        }
+
+        function onDrag(e) {
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+            var newLeft = clientX - dragStartX;
+            var newTop = clientY - dragStartY;
+            // 边界约束
+            var maxX = window.innerWidth - indicator.offsetWidth;
+            var maxY = window.innerHeight - indicator.offsetHeight;
+            newLeft = Math.max(0, Math.min(newLeft, maxX));
+            newTop = Math.max(0, Math.min(newTop, maxY));
+            // 检测是否移动了（区分点击和拖动）
+            if (Math.abs(newLeft - dragOrigLeft) > 3 || Math.abs(newTop - dragOrigTop) > 3) {
+                indicatorDragging = true;
+            }
+            indicator.style.left = newLeft + 'px';
+            indicator.style.top = newTop + 'px';
+            indicator.style.right = 'auto';
+            indicator.style.bottom = 'auto';
+            indicator.style.transform = 'none';
+            if (e.cancelable) e.preventDefault();
+        }
+
+        function endDrag(e) {
+            indicator.style.cursor = 'grab';
+            if (indicatorDragging) {
+                // 保存位置
+                var rect = indicator.getBoundingClientRect();
+                saveIndicatorPosition(rect.left, rect.top);
+            }
+            indicatorDragging = false;
+            if (e.cancelable) e.preventDefault();
+        }
+
+        // 鼠标事件
+        indicator.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        // 触摸事件
+        indicator.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', onDrag, { passive: false });
+        document.addEventListener('touchend', endDrag, { passive: false });
+
+        // 防止点击误触
+        indicator.addEventListener('click', function(e) {
+            if (indicatorDragging) e.stopPropagation();
+        });
+
+        // 隐藏/显示逻辑
+        if (!config.showIndicator) {
+            indicator.style.display = 'none';
+        }
+
         wrapper.appendChild(indicator);
     }
 
@@ -410,6 +528,8 @@
 
         wrapper.addEventListener('touchstart', function(e) {
             if (isAnimating) return;
+            // 如果触摸点在指示器上，不处理页面滑动
+            if (e.target.closest('#beauty-indicator')) return;
             var touch = e.touches[0];
             startX = touch.clientX;
             startIndex = config.currentIndex || 0;
@@ -419,6 +539,7 @@
 
         wrapper.addEventListener('touchmove', function(e) {
             if (!isDragging || isAnimating) return;
+            if (e.target.closest('#beauty-indicator')) return;
             var touch = e.touches[0];
             var diff = touch.clientX - startX;
             var offset = -startIndex * 100 + (diff / wrapper.offsetWidth * 100);
@@ -429,6 +550,7 @@
         wrapper.addEventListener('touchend', function(e) {
             if (!isDragging) return;
             isDragging = false;
+            if (e.target.closest('#beauty-indicator')) return;
             var diff = 0;
             var lastTouch = e.changedTouches[0];
             if (lastTouch) diff = lastTouch.clientX - startX;
@@ -443,6 +565,7 @@
         wrapper.addEventListener('mousedown', function(e) {
             if (isAnimating) return;
             if (e.button !== 0) return;
+            if (e.target.closest('#beauty-indicator')) return;
             mouseDown = true;
             mouseStartX = e.clientX;
             mouseStartIndex = config.currentIndex || 0;
@@ -452,6 +575,7 @@
 
         document.addEventListener('mousemove', function(e) {
             if (!mouseDown || isAnimating) return;
+            if (e.target.closest('#beauty-indicator')) return;
             var diff = e.clientX - mouseStartX;
             var offset = -mouseStartIndex * 100 + (diff / wrapper.offsetWidth * 100);
             offset = Math.min(0, Math.max(offset, -(PAGE_COUNT - 1) * 100));
@@ -461,6 +585,7 @@
         document.addEventListener('mouseup', function(e) {
             if (!mouseDown) return;
             mouseDown = false;
+            if (e.target.closest('#beauty-indicator')) return;
             var diff = e.clientX - mouseStartX;
             var threshold = 50;
             var newIndex = mouseStartIndex;
@@ -470,9 +595,6 @@
         });
     }
 
-    // =============================================
-    // 顶部栏布局修正
-    // =============================================
     function modifyHeaderLayout() {
         var headerInner = document.querySelector('.header-inner');
         if (!headerInner) {
@@ -898,5 +1020,5 @@
 
     init();
 
-    console.log('[美化页面] 模块已加载（指示器在红圈位置）');
+    console.log('[美化页面] 模块已加载（可拖动指示器）');
 })();
