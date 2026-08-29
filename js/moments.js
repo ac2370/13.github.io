@@ -41,10 +41,10 @@
     }
 
     function _getGroupMembers() {
-        var defaultMembers = [
-            { name: '沈星回', avatar: '' },
-            { name: '陆沉', avatar: '' }
-        ];
+        // 🔥 修改：默认返回空数组，不再预置沈星回和陆沉
+        var defaultMembers = [];
+        
+        // 1. 优先从 localStorage 读取群成员
         try {
             var stored = localStorage.getItem('moments_group_members');
             if (stored) {
@@ -54,6 +54,8 @@
                 }
             }
         } catch(e) {}
+
+        // 2. 尝试从 group_chat_data 读取
         try {
             var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
             if (groupData.members && groupData.members.length > 0) {
@@ -61,21 +63,31 @@
                     return { name: m.name || m, avatar: m.avatar || '' };
                 });
                 if (members.length > 0) {
+                    // 保存到 moments_group_members 以便同步
+                    _saveGroupMembers(members);
                     return members;
                 }
             }
         } catch(e) {}
+
+        // 3. 尝试从 groupMembers 读取
         try {
             var storedMembers = localStorage.getItem('groupMembers');
             if (storedMembers) {
                 var parsed = JSON.parse(storedMembers);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed.map(function(m) {
+                    var members = parsed.map(function(m) {
                         return { name: typeof m === 'string' ? m : (m.name || m), avatar: m.avatar || '' };
                     });
+                    _saveGroupMembers(members);
+                    return members;
                 }
             }
         } catch(e) {}
+
+        // 4. 🔥 修改：不再返回默认的沈星回和陆沉，而是返回空数组
+        // 但是为了新用户首次使用不至于完全空白，保存一个示例空数组
+        _saveGroupMembers(defaultMembers);
         return defaultMembers;
     }
 
@@ -85,7 +97,10 @@
 
     function _getRandomGroupMember() {
         var members = _getGroupMembers();
-        if (members.length === 0) return { name: '沈星回', avatar: '' };
+        if (members.length === 0) {
+            // 如果没有成员，返回一个占位对象（但不会真正发布）
+            return { name: '未命名', avatar: '' };
+        }
         return members[Math.floor(Math.random() * members.length)];
     }
 
@@ -213,12 +228,25 @@
         var members = _getGroupMembers();
         members.push({ name: name.trim(), avatar: avatar || '' });
         _saveGroupMembers(members);
+        // 🔥 新增：同步到 group_chat_data
+        try {
+            var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
+            if (!groupData.members) groupData.members = [];
+            groupData.members = members;
+            localStorage.setItem('group_chat_data', JSON.stringify(groupData));
+        } catch(e) {}
     }
 
     function _removeGroupMember(name) {
         var members = _getGroupMembers();
         members = members.filter(function(m) { return m.name !== name; });
         _saveGroupMembers(members);
+        // 同步到 group_chat_data
+        try {
+            var groupData = JSON.parse(localStorage.getItem('group_chat_data') || '{}');
+            groupData.members = members;
+            localStorage.setItem('group_chat_data', JSON.stringify(groupData));
+        } catch(e) {}
         // 删除该成员的所有帖子
         var data = _getData();
         data.posts = data.posts.filter(function(p) {
@@ -278,18 +306,27 @@
             post.likes += 1;
             post.likedByMe = true;
             if (post.author === 'partner') {
-                var delay = Math.random() * 180000;
-                setTimeout(function() {
+                // 🔥 改进：自动回赞延迟缩短，并且增加持久化标记
+                var delay = 3000 + Math.random() * 120000; // 3秒到2分钟
+                var likeTimeoutId = setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = freshPosts.find(function(p) { return p.id === postId; });
                     if (freshPost && freshPost.likedByMe) {
-                        freshPost.likes += 1;
-                        _setData(_getData());
-                        var container = document.getElementById('moments-content');
-                        var activeTab = document.querySelector('.moments-tab.active');
-                        if (container && activeTab) renderTab(activeTab.dataset.tab, container);
+                        // 检查是否已经回赞过
+                        if (!freshPost._partnerRepliedLike) {
+                            freshPost.likes += 1;
+                            freshPost._partnerRepliedLike = true;
+                            _setData(_getData());
+                            var container = document.getElementById('moments-content');
+                            var activeTab = document.querySelector('.moments-tab.active');
+                            if (container && activeTab) renderTab(activeTab.dataset.tab, container);
+                            _notify('💕 ' + (freshPost.memberName || _getPartnerName()) + ' 赞了你', 'info', 2000);
+                        }
                     }
                 }, delay);
+                // 存储timeout ID以便清理
+                if (!post._likeTimeouts) post._likeTimeouts = [];
+                post._likeTimeouts.push(likeTimeoutId);
             }
         }
         _setData(data);
@@ -326,19 +363,63 @@
         _setData(data);
     }
 
+    // 🔥 新增：外部调用的成员发布动态接口
+    window.partnerPublishPost = function(text, memberName) {
+        if (!text || !text.trim()) return;
+        var members = _getGroupMembers();
+        var member = null;
+        if (memberName) {
+            for (var i = 0; i < members.length; i++) {
+                if (members[i].name === memberName) {
+                    member = members[i];
+                    break;
+                }
+            }
+        }
+        if (!member && members.length > 0) {
+            member = members[Math.floor(Math.random() * members.length)];
+        }
+        if (!member) {
+            _notify('没有可用的群成员', 'warning');
+            return;
+        }
+        var post = _addPost('partner', text, new Date().toISOString(), member.name, member.avatar);
+        // 刷新朋友圈界面
+        var container = document.getElementById('moments-content');
+        var activeTab = document.querySelector('.moments-tab.active');
+        if (container && activeTab) renderTab(activeTab.dataset.tab, container);
+        _notify('📱 ' + member.name + ' 发布了新动态', 'success', 2000);
+        return post;
+    };
+
     function _forceGeneratePartnerPosts() {
         var data = _getData();
         var today = new Date().toDateString();
-        if (data.lastGenerateDate === today && data.posts.filter(function(p) { return p.author === 'partner'; }).length > 0) {
+        var members = _getGroupMembers();
+        
+        // 🔥 修改：如果没有成员，不生成任何动态
+        if (members.length === 0) {
+            // 只记录日期，但不生成帖子
+            if (data.lastGenerateDate !== today) {
+                data.lastGenerateDate = today;
+                _setData(data);
+            }
             return;
         }
-        data.posts = data.posts.filter(function(p) { return p.author !== 'partner'; });
-        var members = _getGroupMembers();
-        var activeMembers = members.filter(function(m) { return m.name && m.name.trim(); });
-        if (activeMembers.length === 0) {
-            activeMembers = [{ name: '沈星回', avatar: '' }, { name: '陆沉', avatar: '' }];
+
+        // 检查今天是否已经生成过，且有partner帖子
+        var existingPartnerPosts = data.posts.filter(function(p) { return p.author === 'partner'; });
+        if (data.lastGenerateDate === today && existingPartnerPosts.length > 0) {
+            return;
         }
-        var count = Math.min(2 + Math.floor(Math.random() * 3), activeMembers.length * 2);
+
+        // 删除旧的partner帖子
+        data.posts = data.posts.filter(function(p) { return p.author !== 'partner'; });
+        
+        var activeMembers = members.filter(function(m) { return m.name && m.name.trim(); });
+        if (activeMembers.length === 0) return;
+
+        var count = Math.min(1 + Math.floor(Math.random() * 3), activeMembers.length * 2);
         var now = new Date();
         for (var idx = 0; idx < count; idx++) {
             var member = activeMembers[Math.floor(Math.random() * activeMembers.length)];
@@ -505,18 +586,22 @@
 
         // 构建成员列表HTML
         var memberListHtml = '';
-        for (var mi = 0; mi < members.length; mi++) {
-            var m = members[mi];
-            if (!m.name || !m.name.trim()) continue;
-            var displayAvatar = m.avatar || '';
-            memberListHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(var(--border-color-rgb),0.06);">' +
-                '<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid var(--border-color);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--secondary-bg);">' +
-                (displayAvatar ? '<img src="' + _esc(displayAvatar) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:16px;">🌸</span>') +
-                '</div>' +
-                '<span style="font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(m.name) + '</span>' +
-                '<button onclick="editMember(\'' + _esc(m.name) + '\')" style="padding:4px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;">编辑</button>' +
-                '<button onclick="removeMember(\'' + _esc(m.name) + '\')" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;font-size:13px;cursor:pointer;">✕</button>' +
-                '</div>';
+        if (members.length === 0) {
+            memberListHtml = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">还没有群成员，点击下方添加 ✨</div>';
+        } else {
+            for (var mi = 0; mi < members.length; mi++) {
+                var m = members[mi];
+                if (!m.name || !m.name.trim()) continue;
+                var displayAvatar = m.avatar || '';
+                memberListHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(var(--border-color-rgb),0.06);">' +
+                    '<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid var(--border-color);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--secondary-bg);">' +
+                    (displayAvatar ? '<img src="' + _esc(displayAvatar) + '" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:16px;">🌸</span>') +
+                    '</div>' +
+                    '<span style="font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(m.name) + '</span>' +
+                    '<button onclick="editMember(\'' + _esc(m.name) + '\')" style="padding:4px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--secondary-bg);color:var(--text-secondary);font-size:11px;cursor:pointer;">编辑</button>' +
+                    '<button onclick="removeMember(\'' + _esc(m.name) + '\')" style="padding:4px 8px;border:none;background:none;color:#ff6b6b;font-size:13px;cursor:pointer;">✕</button>' +
+                    '</div>';
+            }
         }
 
         inner.innerHTML =
@@ -543,7 +628,7 @@
                     '<span style="font-size:13px;font-weight:600;color:var(--text-primary);">👥 群成员</span>' +
                     '<button onclick="addMember()" style="padding:5px 14px;border:none;border-radius:10px;background:var(--accent-color);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">+ 添加</button>' +
                 '</div>' +
-                (memberListHtml || '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">暂无群成员</div>') +
+                memberListHtml +
             '</div>' +
             '<div style="display:flex;gap:10px;margin-top:4px;">' +
                 '<button id="avatar-close-btn" style="flex:1;padding:10px;border:1px solid var(--border-color);border-radius:12px;background:var(--secondary-bg);color:var(--text-secondary);font-size:13px;cursor:pointer;">关闭</button>' +
@@ -1139,7 +1224,7 @@
             _notify('评论已发送', 'success');
 
             if (post.author === 'partner') {
-                var delay = Math.random() * 300000;
+                var delay = 3000 + Math.random() * 180000; // 3秒到3分钟
                 setTimeout(function() {
                     var freshPosts = _getPosts();
                     var freshPost = null;
@@ -1235,7 +1320,7 @@
         var rightSection = document.createElement('div');
         rightSection.style.cssText = 'display:flex;gap:6px;align-items:center;';
 
-        // 头像设置按钮（替换原来的图标）
+        // 头像设置按钮
         var avatarBtn = document.createElement('button');
         avatarBtn.style.cssText = 'background:none;border:none;font-size:16px;color:var(--text-secondary);cursor:pointer;padding:4px 6px;border-radius:8px;';
         avatarBtn.innerHTML = '<i class="fas fa-user-circle"></i>';
@@ -1318,6 +1403,7 @@
     window.editMember = editMember;
     window.addMember = addMember;
     window.removeMember = removeMember;
+    window.partnerPublishPost = partnerPublishPost; // 🔥 暴露外部发布接口
 
-    console.log('[朋友圈] 模块已加载（完整版 + 头像与昵称管理）');
+    console.log('[朋友圈] 模块已加载（完整版 + 头像与昵称管理 + 手动添加成员）');
 })();
