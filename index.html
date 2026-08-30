@@ -3232,78 +3232,147 @@
             });
         }
 
-        // 锁屏图片上传（压缩）
-        var lockFileInput = document.getElementById('lockFileInput');
-        var lockCurrentTarget = null;
+        // ============================================================
+//  锁屏：图片/头像上传（压缩）
+// ============================================================
+var lockFileInput = document.getElementById('lockFileInput');
+var lockCurrentTarget = null;
 
-        function lockGetFileInput() { return document.getElementById('lockFileInput'); }
+// 如果锁屏文件输入不存在，创建一个
+if (!lockFileInput) {
+    var newInput = document.createElement('input');
+    newInput.type = 'file';
+    newInput.className = 'hidden-input';
+    newInput.id = 'lockFileInput';
+    newInput.accept = 'image/*';
+    document.getElementById('lockScreen').appendChild(newInput);
+    lockFileInput = document.getElementById('lockFileInput');
+}
 
-        document.querySelectorAll('#lockScreen [data-type="image"], #lockScreen [data-type="avatar"]').forEach(function(el) {
-            el.addEventListener('click', function(e) {
-                if (e.target.closest('.heart-icon')) return;
-                e.stopPropagation();
-                lockCurrentTarget = this;
-                var fi = lockGetFileInput();
-                if (fi) fi.click();
-            });
-        });
-
-        var lockPostImageArea = document.getElementById('lockPostImageArea');
-        if (lockPostImageArea) {
-            lockPostImageArea.addEventListener('click', function(e) {
-                if (e.target.closest('.post-image-center') || e.target.closest('.heart-icon')) return;
-                lockCurrentTarget = document.getElementById('lockPostCenterImage');
-                var fi = lockGetFileInput();
-                if (fi) fi.click();
-            });
+// 确保文件输入事件绑定
+if (lockFileInput) {
+    lockFileInput.addEventListener('change', function(e) {
+        var file = this.files[0];
+        if (!file || !lockCurrentTarget) {
+            console.warn('没有文件或目标元素');
+            return;
         }
-
-        var lockHeartIcon = document.getElementById('lockHeartIcon');
-        if (lockHeartIcon) {
-            lockHeartIcon.addEventListener('click', function(e) {
-                e.stopPropagation();
-                this.style.transform = 'scale(1.3)';
-                this.style.color = '#ff6b81';
-                setTimeout(function() {
-                    lockHeartIcon.style.transform = '';
-                    lockHeartIcon.style.color = '#ff6b81';
-                }, 300);
-                alert('❤️ 已收藏字卡 (演示)');
-            });
-        }
-
-        if (lockFileInput) {
-            lockFileInput.addEventListener('change', function() {
-                var file = this.files[0];
-                if (!file || !lockCurrentTarget) return;
-                compressImage(file, 200, function(compressedDataUrl) {
-                    lockCurrentTarget.innerHTML = '';
-                    var img = document.createElement('img');
-                    img.src = compressedDataUrl;
-                    img.alt = 'uploaded';
-                    lockCurrentTarget.appendChild(img);
-                    if (lockCurrentTarget.id === 'lockPostCenterImage') {
-                        var heart = document.createElement('span');
-                        heart.className = 'heart-icon';
-                        heart.id = 'lockHeartIcon';
-                        heart.textContent = '♥';
-                        lockCurrentTarget.appendChild(heart);
-                        heart.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            this.style.transform = 'scale(1.3)';
-                            this.style.color = '#ff6b81';
-                            setTimeout(function() {
-                                heart.style.transform = '';
-                                heart.style.color = '#ff6b81';
-                            }, 300);
-                            alert('❤️ 已收藏字卡');
-                        });
-                    }
+        console.log('开始压缩上传:', file.name);
+        compressImage(file, 200, function(compressedDataUrl) {
+            console.log('压缩完成，设置图片');
+            // 清空目标元素
+            lockCurrentTarget.innerHTML = '';
+            // 创建图片
+            var img = document.createElement('img');
+            img.src = compressedDataUrl;
+            img.alt = 'uploaded';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.position = 'absolute';
+            img.style.top = '0';
+            img.style.left = '0';
+            lockCurrentTarget.appendChild(img);
+            // 如果是中心图片，恢复心形图标
+            if (lockCurrentTarget.id === 'lockPostCenterImage') {
+                var heart = document.createElement('span');
+                heart.className = 'heart-icon';
+                heart.id = 'lockHeartIcon';
+                heart.textContent = '♥';
+                heart.style.position = 'absolute';
+                heart.style.bottom = '-4px';
+                heart.style.right = '-4px';
+                heart.style.width = '18px';
+                heart.style.height = '18px';
+                heart.style.background = 'rgba(0,0,0,0.6)';
+                heart.style.backdropFilter = 'blur(4px)';
+                heart.style.borderRadius = '50%';
+                heart.style.display = 'flex';
+                heart.style.alignItems = 'center';
+                heart.style.justifyContent = 'center';
+                heart.style.fontSize = '10px';
+                heart.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                heart.style.color = '#ff6b81';
+                heart.style.border = '1.5px solid rgba(255,255,255,0.15)';
+                heart.style.cursor = 'pointer';
+                heart.style.zIndex = '2';
+                lockCurrentTarget.appendChild(heart);
+                heart.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.style.transform = 'scale(1.3)';
+                    this.style.color = '#ff6b81';
+                    setTimeout(function() {
+                        heart.style.transform = '';
+                        heart.style.color = '#ff6b81';
+                    }, 300);
+                    alert('❤️ 已收藏字卡');
                 });
-                this.value = '';
-                lockCurrentTarget = null;
-            });
-        }
+            }
+            // 提示用户
+            var msg = '✅ 图片已更换';
+            console.log(msg);
+        });
+        // 清空 input，允许重复选择同一文件
+        this.value = '';
+        lockCurrentTarget = null;
+    });
+}
+
+// 为锁屏内所有可点击上传的元素绑定事件
+function bindLockUploadEvents() {
+    var elements = document.querySelectorAll('#lockScreen [data-type="image"], #lockScreen [data-type="avatar"]');
+    console.log('找到可上传元素:', elements.length);
+    elements.forEach(function(el) {
+        // 移除旧事件避免重复绑定
+        el.removeEventListener('click', lockUploadClickHandler);
+        el.addEventListener('click', lockUploadClickHandler);
+    });
+    
+    // 特殊处理 post-image-area
+    var postArea = document.getElementById('lockPostImageArea');
+    if (postArea) {
+        postArea.removeEventListener('click', lockAreaClickHandler);
+        postArea.addEventListener('click', lockAreaClickHandler);
+    }
+}
+
+function lockUploadClickHandler(e) {
+    if (e.target.closest('.heart-icon')) return;
+    e.stopPropagation();
+    lockCurrentTarget = this;
+    var fi = document.getElementById('lockFileInput');
+    if (fi) {
+        console.log('触发文件选择器，目标:', this.className || this.id);
+        fi.click();
+    } else {
+        console.error('文件输入不存在');
+    }
+}
+
+function lockAreaClickHandler(e) {
+    if (e.target.closest('.post-image-center') || e.target.closest('.heart-icon')) return;
+    lockCurrentTarget = document.getElementById('lockPostCenterImage');
+    var fi = document.getElementById('lockFileInput');
+    if (fi) {
+        console.log('触发文件选择器（区域），目标: post-center-image');
+        fi.click();
+    }
+}
+
+// 初始化绑定
+setTimeout(function() {
+    bindLockUploadEvents();
+    console.log('🔒 锁屏上传事件已绑定');
+}, 100);
+
+// 当锁屏内容变化时重新绑定（例如动态添加元素后）
+var lockScreenObserver = new MutationObserver(function() {
+    bindLockUploadEvents();
+});
+var lockScreenContainer = document.getElementById('lockScreen');
+if (lockScreenContainer) {
+    lockScreenObserver.observe(lockScreenContainer, { childList: true, subtree: true });
+}
 
         // 锁屏背景上传（压缩）
         var lockBgLayer = document.getElementById('lockBgLayer');
