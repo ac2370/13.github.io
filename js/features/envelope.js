@@ -134,7 +134,8 @@ function _sendTimemail() {
             text: '✉️ ' + pName + ' 给你寄来了一封时空来信 💌',
             timestamp: new Date(),
             type: 'system',
-            status: 'sent'
+            status: 'sent',
+            noQuote: true  // 禁止引用
         });
         if (typeof playSound === 'function') playSound('send');
     }
@@ -757,7 +758,15 @@ function handleSendEnvelope() {
     var sendToChat = document.getElementById('env-send-to-chat').checked;
     if (sendToChat) {
         if (typeof addMessage === 'function') {
-            addMessage({ id: Date.now(), sender: 'user', text: '【寄出的信】\n' + text, timestamp: new Date(), status: 'sent', type: 'normal' });
+            addMessage({
+                id: Date.now(),
+                sender: 'user',
+                text: '【寄出的信】\n' + text,
+                timestamp: new Date(),
+                status: 'sent',
+                type: 'normal',
+                noQuote: true  // 禁止引用
+            });
         }
     }
     var minHours = 10,
