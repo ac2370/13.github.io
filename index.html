@@ -1239,15 +1239,12 @@
         <!-- ===== 底部：背景控制 + 解锁按钮 ===== -->
         <div class="bottom-area">
             <div class="bg-controls">
-                <button class="bg-control-btn" data-bg="#1e1e2f"><span class="dot" style="background:#1e1e2f;"></span> 深色</button>
-                <button class="bg-control-btn" data-bg="linear-gradient(135deg, #2b1a2e, #1a1a2e)"><span class="dot" style="background:linear-gradient(135deg, #2b1a2e, #1a1a2e);"></span> 暗紫</button>
-                <button class="bg-control-btn" data-bg="#16213e"><span class="dot" style="background:#16213e;"></span> 深海</button>
                 <button class="bg-control-btn" id="lockBgUploadBtn">🖼️ 图片</button>
             </div>
 
             <div class="unlock-area">
                 <button class="unlock-btn" id="lockUnlockBtn">
-                    <span class="arrow">↗</span> 滑动解锁字卡
+                    <span class="arrow">↗</span> 解锁字卡
                 </button>
             </div>
         </div>
@@ -1258,19 +1255,6 @@
     <input type="file" class="hidden-input" id="lockBgFileInput" accept="image/*">
 </div>
 
-<!-- ===== 字卡聊天覆盖层（解锁后显示） ===== -->
-<div class="chat-overlay" id="lockChatOverlay">
-    <div class="chat-card">
-        <div class="chat-icon">🃏</div>
-        <h2>字卡 · 聊天</h2>
-        <p>每日一字，与灵感对话</p>
-        <div class="mock-msg">
-            ✦ “静” —— 心静则明，水止乃照。<br>
-            <span style="font-size:12px;color:rgba(255,255,255,0.3);">来自字卡库 · 今日推荐</span>
-        </div>
-        <button class="back-btn" id="lockBackFromChat">← 锁屏</button>
-    </div>
-</div>
 
 <!-- ===== 锁屏日期弹窗 ===== -->
 <div class="lock-date-modal-overlay" id="lockDateModal">
