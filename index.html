@@ -3232,11 +3232,12 @@
             });
         }
 
-        // ============================================================
+      // ============================================================
 //  锁屏：图片/头像上传（压缩）
 // ============================================================
 var lockFileInput = document.getElementById('lockFileInput');
 var lockCurrentTarget = null;
+var pendingTarget = null; // 用于在异步压缩过程中保存目标
 
 // 如果锁屏文件输入不存在，创建一个
 if (!lockFileInput) {
@@ -3249,72 +3250,137 @@ if (!lockFileInput) {
     lockFileInput = document.getElementById('lockFileInput');
 }
 
+// 压缩函数（如果不存在则定义）
+if (typeof compressImage !== 'function') {
+    window.compressImage = function(file, maxSizeKB, callback) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                var width = img.width;
+                var height = img.height;
+                var maxDimension = 800;
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = height * maxDimension / width;
+                        width = maxDimension;
+                    } else {
+                        width = width * maxDimension / height;
+                        height = maxDimension;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                var quality = 0.9;
+                var dataUrl = canvas.toDataURL('image/jpeg', quality);
+                while (dataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+                    quality -= 0.05;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                }
+                callback(dataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+}
+
 // 确保文件输入事件绑定
 if (lockFileInput) {
     lockFileInput.addEventListener('change', function(e) {
         var file = this.files[0];
-        if (!file || !lockCurrentTarget) {
-            console.warn('没有文件或目标元素');
+        if (!file) {
+            console.warn('没有选择文件');
             return;
         }
+        
+        // 保存当前目标到 pendingTarget，防止被清空
+        var target = lockCurrentTarget;
+        if (!target) {
+            console.warn('没有目标元素，请先点击图片再上传');
+            this.value = '';
+            return;
+        }
+        
         console.log('开始压缩上传:', file.name);
+        
         compressImage(file, 200, function(compressedDataUrl) {
             console.log('压缩完成，设置图片');
-            // 清空目标元素
-            lockCurrentTarget.innerHTML = '';
-            // 创建图片
-            var img = document.createElement('img');
-            img.src = compressedDataUrl;
-            img.alt = 'uploaded';
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            img.style.position = 'absolute';
-            img.style.top = '0';
-            img.style.left = '0';
-            lockCurrentTarget.appendChild(img);
-            // 如果是中心图片，恢复心形图标
-            if (lockCurrentTarget.id === 'lockPostCenterImage') {
-                var heart = document.createElement('span');
-                heart.className = 'heart-icon';
-                heart.id = 'lockHeartIcon';
-                heart.textContent = '♥';
-                heart.style.position = 'absolute';
-                heart.style.bottom = '-4px';
-                heart.style.right = '-4px';
-                heart.style.width = '18px';
-                heart.style.height = '18px';
-                heart.style.background = 'rgba(0,0,0,0.6)';
-                heart.style.backdropFilter = 'blur(4px)';
-                heart.style.borderRadius = '50%';
-                heart.style.display = 'flex';
-                heart.style.alignItems = 'center';
-                heart.style.justifyContent = 'center';
-                heart.style.fontSize = '10px';
-                heart.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-                heart.style.color = '#ff6b81';
-                heart.style.border = '1.5px solid rgba(255,255,255,0.15)';
-                heart.style.cursor = 'pointer';
-                heart.style.zIndex = '2';
-                lockCurrentTarget.appendChild(heart);
-                heart.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    this.style.transform = 'scale(1.3)';
-                    this.style.color = '#ff6b81';
-                    setTimeout(function() {
-                        heart.style.transform = '';
-                        heart.style.color = '#ff6b81';
-                    }, 300);
-                    alert('❤️ 已收藏字卡');
-                });
+            // 再次检查目标是否有效
+            if (!target || !target.parentNode) {
+                console.warn('目标元素已失效');
+                return;
             }
-            // 提示用户
-            var msg = '✅ 图片已更换';
-            console.log(msg);
+            
+            try {
+                // 清空目标元素
+                target.innerHTML = '';
+                // 设置目标元素为相对定位，用于容纳绝对定位的图片
+                target.style.position = 'relative';
+                target.style.display = 'flex';
+                target.style.alignItems = 'center';
+                target.style.justifyContent = 'center';
+                target.style.overflow = 'hidden';
+                
+                // 创建图片
+                var img = document.createElement('img');
+                img.src = compressedDataUrl;
+                img.alt = 'uploaded';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.position = 'absolute';
+                img.style.top = '0';
+                img.style.left = '0';
+                target.appendChild(img);
+                
+                // 如果是中心图片，恢复心形图标
+                if (target.id === 'lockPostCenterImage') {
+                    var heart = document.createElement('span');
+                    heart.className = 'heart-icon';
+                    heart.id = 'lockHeartIcon';
+                    heart.textContent = '♥';
+                    heart.style.position = 'absolute';
+                    heart.style.bottom = '-4px';
+                    heart.style.right = '-4px';
+                    heart.style.width = '18px';
+                    heart.style.height = '18px';
+                    heart.style.background = 'rgba(0,0,0,0.6)';
+                    heart.style.backdropFilter = 'blur(4px)';
+                    heart.style.borderRadius = '50%';
+                    heart.style.display = 'flex';
+                    heart.style.alignItems = 'center';
+                    heart.style.justifyContent = 'center';
+                    heart.style.fontSize = '10px';
+                    heart.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                    heart.style.color = '#ff6b81';
+                    heart.style.border = '1.5px solid rgba(255,255,255,0.15)';
+                    heart.style.cursor = 'pointer';
+                    heart.style.zIndex = '2';
+                    target.appendChild(heart);
+                    heart.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        this.style.transform = 'scale(1.3)';
+                        this.style.color = '#ff6b81';
+                        setTimeout(function() {
+                            heart.style.transform = '';
+                            heart.style.color = '#ff6b81';
+                        }, 300);
+                        alert('❤️ 已收藏字卡');
+                    });
+                }
+                console.log('✅ 图片已更换');
+            } catch (err) {
+                console.error('设置图片时出错:', err);
+            }
         });
+        
         // 清空 input，允许重复选择同一文件
         this.value = '';
-        lockCurrentTarget = null;
+        // 不要重置 lockCurrentTarget，防止多次上传
     });
 }
 
@@ -3340,9 +3406,9 @@ function lockUploadClickHandler(e) {
     if (e.target.closest('.heart-icon')) return;
     e.stopPropagation();
     lockCurrentTarget = this;
+    console.log('触发文件选择器，目标:', this.className || this.id || this.tagName);
     var fi = document.getElementById('lockFileInput');
     if (fi) {
-        console.log('触发文件选择器，目标:', this.className || this.id);
         fi.click();
     } else {
         console.error('文件输入不存在');
@@ -3352,9 +3418,9 @@ function lockUploadClickHandler(e) {
 function lockAreaClickHandler(e) {
     if (e.target.closest('.post-image-center') || e.target.closest('.heart-icon')) return;
     lockCurrentTarget = document.getElementById('lockPostCenterImage');
+    console.log('触发文件选择器（区域），目标: post-center-image');
     var fi = document.getElementById('lockFileInput');
     if (fi) {
-        console.log('触发文件选择器（区域），目标: post-center-image');
         fi.click();
     }
 }
@@ -3365,7 +3431,7 @@ setTimeout(function() {
     console.log('🔒 锁屏上传事件已绑定');
 }, 100);
 
-// 当锁屏内容变化时重新绑定（例如动态添加元素后）
+// 当锁屏内容变化时重新绑定
 var lockScreenObserver = new MutationObserver(function() {
     bindLockUploadEvents();
 });
