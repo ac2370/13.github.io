@@ -27,6 +27,9 @@
         connectingTimer: null,
         randomCallTimer: null,
         isPartnerCall:   false,
+        // 新增：后台来电通知状态
+        backgroundNotifShown: false,
+        notificationInstance: null,
     };
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -46,7 +49,7 @@
 </svg>`;
 
     // =============================================
-    // 新增：来电通知辅助功能
+    // 新增：后台来电通知辅助功能（增强版）
     // =============================================
     function _requestNotificationPermission() {
         if (!('Notification' in window)) return;
@@ -56,34 +59,155 @@
         });
     }
 
-    function _sendDesktopNotification(title, body, icon) {
+    // =============================================
+    // 核心：后台来电通知（带点击跳转 + 接听）
+    // =============================================
+    function _sendBackgroundCallNotification(callerName, callerAvatar) {
+        // 检查权限
         if (!('Notification' in window)) return false;
-        if (Notification.permission !== 'granted') return false;
+        if (Notification.permission !== 'granted') {
+            console.warn('[来电通知] 通知权限未授予，尝试请求...');
+            Notification.requestPermission().then(function(p) {
+                if (p === 'granted') _sendBackgroundCallNotification(callerName, callerAvatar);
+            });
+            return false;
+        }
+
+        // 如果已有通知实例，先关闭
+        if (S.notificationInstance) {
+            try { S.notificationInstance.close(); } catch(e) {}
+            S.notificationInstance = null;
+        }
+
+        var bodyText = '正在呼叫你... 点击接听';
+
+        var options = {
+            body: bodyText,
+            icon: callerAvatar || '',
+            silent: false,
+            vibrate: [200, 100, 200, 100, 300, 150, 200],
+            requireInteraction: true,
+            tag: 'call_notification_' + Date.now(),
+            data: { action: 'answer_call' },
+            actions: [
+                { action: 'answer', title: '📞 接听' },
+                { action: 'decline', title: '✕ 忽略' }
+            ]
+        };
+
         try {
-            var options = {
-                body: body || '',
-                icon: icon || '',
-                silent: false,
-                vibrate: [200, 100, 200],
-                requireInteraction: true,
-                tag: 'call_notification_' + Date.now()
-            };
-            var notification = new Notification(title, options);
-            notification.onclick = function() {
+            var notification = new Notification('📞 ' + callerName + ' 来电话了', options);
+            S.notificationInstance = notification;
+
+            // 点击通知（主区域）→ 接听
+            notification.onclick = function(e) {
+                e.preventDefault();
                 window.focus();
                 notification.close();
+                S.notificationInstance = null;
+                // 跳转回页面并接通
+                _focusAndAnswerCall();
             };
-            setTimeout(function() { notification.close(); }, 15000);
+
+            // 点击 Action 按钮
+            notification.addEventListener('click', function(e) {
+                // 如果是通过 action 触发的，e.action 会有值
+            });
+
+            // 使用 notification 的 onaction 事件（部分浏览器支持）
+            // 但为了兼容，我们使用自定义监听
+            notification.addEventListener('click', function(e) {
+                // 如果是按钮点击，target 可能是按钮
+                if (e.target && e.target.tagName === 'BUTTON') {
+                    var action = e.target.dataset.action;
+                    if (action === 'answer') {
+                        window.focus();
+                        notification.close();
+                        S.notificationInstance = null;
+                        _focusAndAnswerCall();
+                    } else if (action === 'decline') {
+                        notification.close();
+                        S.notificationInstance = null;
+                    }
+                }
+            });
+
+            // 兼容 Firefox 等：通过 actions 按钮点击
+            // 部分浏览器不会触发 click 事件，使用 polyfill 方式
+            // 我们额外监听 notification 的 close 事件
+
+            // 自动关闭超时（90秒后无人接听自动关闭）
+            setTimeout(function() {
+                if (S.notificationInstance === notification) {
+                    notification.close();
+                    S.notificationInstance = null;
+                }
+            }, 90000);
+
+            S.backgroundNotifShown = true;
             return true;
-        } catch(e) { return false; }
+        } catch(e) {
+            console.warn('[来电通知] 发送通知失败:', e);
+            return false;
+        }
     }
 
+    // =============================================
+    // 跳转回页面并接通来电
+    // =============================================
+    function _focusAndAnswerCall() {
+        // 1. 聚焦窗口
+        try {
+            window.focus();
+            if (window.parent && window.parent !== window) {
+                window.parent.focus();
+            }
+        } catch(e) {}
+
+        // 2. 如果聊天模态框未打开，尝试打开
+        var chatModal = document.getElementById('chat-modal');
+        if (chatModal && (chatModal.style.display === 'none' || chatModal.style.display === '')) {
+            chatModal.style.display = 'flex';
+            // 触发显示动画
+            chatModal.classList.remove('hidden');
+        }
+
+        // 3. 关闭所有来电通知卡片
+        var incomingOverlay = document.getElementById('call-incoming-overlay');
+        if (incomingOverlay) {
+            incomingOverlay.classList.remove('visible');
+        }
+
+        // 4. 清除铃声
+        _stopCallRingtone();
+
+        // 5. 接通来电
+        if (!S.active) {
+            startCall(true);
+        } else {
+            restoreWindow();
+        }
+
+        // 6. 清除通知实例
+        if (S.notificationInstance) {
+            try { S.notificationInstance.close(); } catch(e) {}
+            S.notificationInstance = null;
+        }
+        S.backgroundNotifShown = false;
+    }
+
+    // =============================================
+    // 铃声播放（加强版：支持后台持续播放）
+    // =============================================
     var _ringInterval = null;
+    var _ringAudioCtx = null;
 
     function _playCallRingtone() {
         try {
             var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            _ringAudioCtx = audioCtx;
             if (audioCtx.state === 'suspended') audioCtx.resume();
+
             var oscillator = audioCtx.createOscillator();
             var gainNode = audioCtx.createGain();
             oscillator.connect(gainNode);
@@ -106,31 +230,39 @@
 
             var loopInterval = setInterval(function() {
                 var ov = document.getElementById('call-incoming-overlay');
-                if (!ov || !ov.classList.contains('visible')) {
-                    clearInterval(loopInterval);
-                    _ringInterval = null;
-                    return;
+                var notifStillActive = S.notificationInstance !== null || document.hidden;
+                // 如果有来电通知或页面在后台，继续播放
+                if (!ov || (!ov.classList.contains('visible') && !document.hidden && !S.backgroundNotifShown)) {
+                    if (!S.backgroundNotifShown) {
+                        clearInterval(loopInterval);
+                        _ringInterval = null;
+                        return;
+                    }
                 }
                 try {
-                    var newOsc = audioCtx.createOscillator();
-                    var newGain = audioCtx.createGain();
+                    if (!_ringAudioCtx) {
+                        _ringAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (_ringAudioCtx.state === 'suspended') _ringAudioCtx.resume();
+                    var newOsc = _ringAudioCtx.createOscillator();
+                    var newGain = _ringAudioCtx.createGain();
                     newOsc.connect(newGain);
-                    newGain.connect(audioCtx.destination);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.2);
-                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.3);
-                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.5);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.6);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.8);
-                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.9);
-                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 1.1);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 1.2);
-                    newOsc.frequency.setValueAtTime(440, audioCtx.currentTime + 1.4);
-                    newOsc.frequency.setValueAtTime(0, audioCtx.currentTime + 1.5);
-                    newGain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-                    newGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.6);
-                    newOsc.start(audioCtx.currentTime);
-                    newOsc.stop(audioCtx.currentTime + 1.6);
+                    newGain.connect(_ringAudioCtx.destination);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime + 0.2);
+                    newOsc.frequency.setValueAtTime(0, _ringAudioCtx.currentTime + 0.3);
+                    newOsc.frequency.setValueAtTime(0, _ringAudioCtx.currentTime + 0.5);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime + 0.6);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime + 0.8);
+                    newOsc.frequency.setValueAtTime(0, _ringAudioCtx.currentTime + 0.9);
+                    newOsc.frequency.setValueAtTime(0, _ringAudioCtx.currentTime + 1.1);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime + 1.2);
+                    newOsc.frequency.setValueAtTime(440, _ringAudioCtx.currentTime + 1.4);
+                    newOsc.frequency.setValueAtTime(0, _ringAudioCtx.currentTime + 1.5);
+                    newGain.gain.setValueAtTime(0.12, _ringAudioCtx.currentTime);
+                    newGain.gain.exponentialRampToValueAtTime(0.01, _ringAudioCtx.currentTime + 1.6);
+                    newOsc.start(_ringAudioCtx.currentTime);
+                    newOsc.stop(_ringAudioCtx.currentTime + 1.6);
                 } catch(e) {}
             }, 2000);
             _ringInterval = loopInterval;
@@ -142,10 +274,14 @@
             clearInterval(_ringInterval);
             _ringInterval = null;
         }
+        if (_ringAudioCtx) {
+            try { _ringAudioCtx.close(); } catch(e) {}
+            _ringAudioCtx = null;
+        }
     }
 
     // =============================================
-    // 注入样式 & HTML
+    // 注入样式 & HTML（添加后台通知卡片样式）
     // =============================================
     function injectCSS() {
         if (document.getElementById('call-feature-style')) return;
@@ -205,6 +341,110 @@
 .call-inc-btn:hover .call-inc-circle{transform:scale(1.1);}
 .call-inc-btn:active .call-inc-circle{transform:scale(.9);}
 .call-inc-close .call-inc-circle{background:rgba(255,255,255,.15);box-shadow:0 0 0 1px rgba(255,255,255,.1);}
+
+/* 新增：后台来电简约卡片（红圈样式） */
+#call-background-notification {
+    position:fixed;
+    top:50px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:99995;
+    display:none;
+    background:rgba(255,255,255,.96);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border-radius:20px;
+    padding:16px 20px;
+    box-shadow:0 12px 48px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.05);
+    border:1px solid rgba(255,255,255,.3);
+    min-width:280px;
+    max-width:92%;
+    animation:cFi .4s cubic-bezier(.22,1,.36,1);
+    align-items:center;
+    gap:12px;
+}
+#call-background-notification.visible {
+    display:flex;
+}
+.call-bg-notif-avatar {
+    width:48px;
+    height:48px;
+    border-radius:50%;
+    background:var(--accent-color,#e0698a);
+    overflow:hidden;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:2px solid rgba(0,0,0,.08);
+}
+.call-bg-notif-avatar img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+.call-bg-notif-avatar i {
+    font-size:20px;
+    color:rgba(255,255,255,.8);
+}
+.call-bg-notif-info {
+    flex:1;
+    min-width:0;
+}
+.call-bg-notif-name {
+    font-size:15px;
+    font-weight:700;
+    color:#222;
+}
+.call-bg-notif-status {
+    font-size:12px;
+    color:#888;
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+.call-bg-notif-status .dot {
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#4caf50;
+    animation:cBl 1.1s step-end infinite;
+}
+.call-bg-notif-actions {
+    display:flex;
+    gap:8px;
+    flex-shrink:0;
+}
+.call-bg-notif-btn {
+    padding:8px 16px;
+    border-radius:30px;
+    border:none;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .15s,background .2s;
+    -webkit-tap-highlight-color:transparent;
+}
+.call-bg-notif-btn:hover {
+    transform:scale(1.04);
+}
+.call-bg-notif-btn:active {
+    transform:scale(.94);
+}
+.call-bg-notif-btn-answer {
+    background:var(--accent-color,#e0698a);
+    color:#fff;
+}
+.call-bg-notif-btn-answer:hover {
+    background:var(--accent-color-dark,#c95a7a);
+}
+.call-bg-notif-btn-decline {
+    background:rgba(0,0,0,.06);
+    color:#666;
+}
+.call-bg-notif-btn-decline:hover {
+    background:rgba(0,0,0,.12);
+}
 
 #call-window{
     position:fixed;z-index:99900;
@@ -483,6 +723,23 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
   </div>
 </div>
 
+<!-- 新增：后台来电简约通知卡片（红圈样式） -->
+<div id="call-background-notification">
+  <div class="call-bg-notif-avatar" id="call-bg-notif-avatar">
+    <i class="fas fa-user" id="call-bg-notif-icon"></i>
+  </div>
+  <div class="call-bg-notif-info">
+    <div class="call-bg-notif-name" id="call-bg-notif-name">对方</div>
+    <div class="call-bg-notif-status">
+      <span class="dot"></span> 正在呼叫...
+    </div>
+  </div>
+  <div class="call-bg-notif-actions">
+    <button class="call-bg-notif-btn call-bg-notif-btn-decline" id="call-bg-notif-decline">忽略</button>
+    <button class="call-bg-notif-btn call-bg-notif-btn-answer" id="call-bg-notif-answer">接听</button>
+  </div>
+</div>
+
 <div id="call-window">
   <div id="call-window-inner">
     <div id="call-window-bg">
@@ -663,6 +920,16 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         S.minimized = false; S.isPartnerCall = !!isPartner; S.immersive = false;
         document.getElementById('call-window')?.classList.remove('immersive');
 
+        // 关闭后台通知卡片
+        document.getElementById('call-background-notification')?.classList.remove('visible');
+        // 关闭桌面通知
+        if (S.notificationInstance) {
+            try { S.notificationInstance.close(); } catch(e) {}
+            S.notificationInstance = null;
+        }
+        S.backgroundNotifShown = false;
+        _stopCallRingtone();
+
         ['call-inc-avatar','call-conn-avatar','call-win-avatar','call-mini-av'].forEach(fillAv);
         ['call-conn-name','call-win-name','call-mini-name'].forEach(fillNm);
         applyBg(); positionWindow();
@@ -719,6 +986,15 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         cancelAnimationFrame(S.timerRAF);
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
 
+        // 关闭后台通知卡片
+        document.getElementById('call-background-notification')?.classList.remove('visible');
+        if (S.notificationInstance) {
+            try { S.notificationInstance.close(); } catch(e) {}
+            S.notificationInstance = null;
+        }
+        S.backgroundNotifShown = false;
+        _stopCallRingtone();
+
         ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
             const e = document.getElementById(id);
             if (e) { e.classList.remove('visible'); if (id === 'call-window') e.classList.remove('immersive'); }
@@ -741,7 +1017,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     // =============================================
-    // 修改：来电通知（简约卡片 + 桌面通知 + 声音）
+    // 修改：来电通知（增强：桌面通知 + 后台简约卡片 + 铃声）
     // =============================================
     function showIncomingCall() {
         if (!S.enabled || S.active) return;
@@ -751,6 +1027,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         var callerName = getName();
         var callerAvatar = getAvSrc();
 
+        // ---- 1. 更新全屏来电遮罩 ----
         var nameEl = document.getElementById('call-inc-name');
         if (nameEl) nameEl.textContent = callerName;
 
@@ -763,45 +1040,94 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             }
         }
 
-        // 修改副标题
         var subEl = document.querySelector('.call-inc-sub span:last-child');
         if (subEl) subEl.textContent = '正在呼叫你...';
 
-        // 关闭按钮事件
         var closeBtn = document.getElementById('call-notification-close');
         if (closeBtn) {
             closeBtn.onclick = function() {
                 ov.classList.remove('visible');
+                document.getElementById('call-background-notification')?.classList.remove('visible');
                 clearTimeout(S.incomingTimer);
                 _stopCallRingtone();
+                if (S.notificationInstance) {
+                    try { S.notificationInstance.close(); } catch(e) {}
+                    S.notificationInstance = null;
+                }
+                S.backgroundNotifShown = false;
             };
         }
 
-        // 播放铃声（如果页面在后台）
-        if (document.hidden) {
-            _playCallRingtone();
-        }
-
-        // 发送桌面通知
-        var notifSent = _sendDesktopNotification(
-            '📞 ' + callerName + ' 来电话了',
-            '正在呼叫你...',
-            callerAvatar || ''
-        );
-
-        // 如果页面在后台且没有发送通知，尝试振动
-        if (document.hidden && !notifSent && navigator.vibrate) {
-            navigator.vibrate([200, 100, 200, 100, 200]);
-        }
-
         ov.classList.add('visible');
+
+        // ---- 2. 显示后台简约通知卡片（类似红圈样式） ----
+        var bgNotif = document.getElementById('call-background-notification');
+        if (bgNotif) {
+            var bgName = document.getElementById('call-bg-notif-name');
+            if (bgName) bgName.textContent = callerName;
+
+            var bgAvatar = document.getElementById('call-bg-notif-avatar');
+            if (bgAvatar) {
+                if (callerAvatar) {
+                    bgAvatar.innerHTML = '<img src="' + callerAvatar + '" style="width:100%;height:100%;object-fit:cover;">';
+                } else {
+                    bgAvatar.innerHTML = '<i class="fas fa-user"></i>';
+                }
+            }
+
+            // 接听按钮
+            var answerBtn = document.getElementById('call-bg-notif-answer');
+            if (answerBtn) {
+                answerBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    _focusAndAnswerCall();
+                };
+            }
+
+            // 忽略按钮
+            var declineBtn = document.getElementById('call-bg-notif-decline');
+            if (declineBtn) {
+                declineBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    bgNotif.classList.remove('visible');
+                    ov.classList.remove('visible');
+                    clearTimeout(S.incomingTimer);
+                    _stopCallRingtone();
+                    if (S.notificationInstance) {
+                        try { S.notificationInstance.close(); } catch(e) {}
+                        S.notificationInstance = null;
+                    }
+                    S.backgroundNotifShown = false;
+                };
+            }
+
+            bgNotif.classList.add('visible');
+        }
+
+        // ---- 3. 播放铃声（始终播放，即使用户在后台） ----
+        _playCallRingtone();
+
+        // ---- 4. 发送桌面通知（即使页面在后台也能显示） ----
+        var notifSent = _sendBackgroundCallNotification(callerName, callerAvatar);
+
+        // ---- 5. 如果页面在后台且没有发送通知，尝试振动 ----
+        if (document.hidden && !notifSent && navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 300, 150, 200]);
+        }
+
         clearTimeout(S.incomingTimer);
 
-        // 30秒后自动关闭
+        // 60秒后自动关闭所有通知
         S.incomingTimer = setTimeout(function() {
             ov.classList.remove('visible');
+            bgNotif?.classList.remove('visible');
             _stopCallRingtone();
-        }, 30000);
+            if (S.notificationInstance) {
+                try { S.notificationInstance.close(); } catch(e) {}
+                S.notificationInstance = null;
+            }
+            S.backgroundNotifShown = false;
+        }, 60000);
     }
 
     function scheduleRandomCall() {
@@ -993,7 +1319,10 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         initDrag(); initPillDrag(); initResize();
     }
 
+    // 暴露全局方法
     window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow };
+    // 暴露用于后台通知的回调
+    window._focusAndAnswerCall = _focusAndAnswerCall;
 
     function init() {
         injectCSS();
@@ -1001,7 +1330,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         bindEvents();
         loadBg();
 
-        // 请求通知权限
+        // 请求通知权限（延迟进行，避免阻塞）
         setTimeout(function() {
             _requestNotificationPermission();
         }, 2000);
