@@ -78,18 +78,20 @@
             padding-top: 8px;
         }
 
-        /* ===== 状态栏 ===== */
+        /* ===== 状态栏 - 改为居中文字 ===== */
         .lock-screen .status-bar {
             display: flex;
-            justify-content: space-between;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            padding: 0 4px 12px;
+            justify-content: center;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            padding: 0 4px 14px;
             flex-shrink: 0;
+            font-style: italic;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
-        .lock-screen .status-bar .time { font-weight: 600; }
 
         /* ===== 所有卡片半透明毛玻璃 ===== */
         .lock-screen .user-profile-card,
@@ -989,15 +991,14 @@
         .back-float-btn .fa-arrow-left {
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         }
-        /* 拖动时的样式 */
         .back-float-btn.dragging {
             transition: none !important;
             box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
-            border-color: rgba(255, 255, 255, 0.6);
+            border-color: rgba(255, 215, 0, 0.8);
             transform: scale(1.08);
         }
 
-        /* ===== 外观设置 - 锁屏背景（与聊天背景同级） ===== */
+        /* ===== 外观设置 - 锁屏背景 ===== */
         .bg-gallery-lock {
             display: flex;
             flex-wrap: wrap;
@@ -1072,10 +1073,9 @@
 <div class="lock-screen" id="lockScreen">
     <div class="bg-layer" id="lockBgLayer"></div>
     <div class="lock-content">
-        <!-- 状态栏 -->
+        <!-- 状态栏 - 居中文字 -->
         <div class="status-bar">
-            <span class="time" id="lockStatusTime">9:41</span>
-            <span>📶 🔋 100%</span>
+            <span>- 爱是不可多得的神迹 -</span>
         </div>
 
         <!-- ===== 1. 用户卡片 ===== -->
@@ -1392,10 +1392,10 @@
 <!-- ============================================================ -->
 <!-- ===== 所有模态框 ===== -->
 <!-- ============================================================ -->
-<!-- 此处仅保留核心模态框以节省篇幅，实际使用时请将原 index.html 中的所有模态框完整粘贴 -->
+<!-- 此处保留核心模态框，实际使用时请将原 index.html 中的所有模态框完整粘贴 -->
 <!-- 请确保包含：edit-modal, avatar-modal, note-modal, poke-modal, envelope-modal, envelope-view-modal, group-chat-modal, group-member-edit-modal, settings-modal, appearance-modal, chat-modal, advanced-modal, data-modal, stats-modal, session-modal, fortune-lenormand-modal, mood-modal, theme-editor-modal, custom-replies-modal, coin-toss-overlay, disclaimer-modal, anniversary-modal, decision-menu-modal, wheel-modal, player, daily-greeting-modal 等 -->
 
-<!-- ===== 外观设置 - 新增锁屏背景（与聊天背景同级） ===== -->
+<!-- ===== 外观设置 - 锁屏背景（与聊天背景同级） ===== -->
 <!-- 该功能已集成到 appearance-modal 中，实际使用时需在 appearance-modal 内添加 "锁屏背景" 区域 -->
 
 <!-- ============================================================ -->
@@ -1430,17 +1430,47 @@
         'use strict';
 
         // ============================================================
-        //  锁屏：状态栏时间
+        //  图片压缩工具（锁屏所有图片上传时自动压缩至 200KB 以内）
         // ============================================================
-        function updateLockStatusTime() {
-            var now = new Date();
-            var h = String(now.getHours()).padStart(2, '0');
-            var m = String(now.getMinutes()).padStart(2, '0');
-            var el = document.getElementById('lockStatusTime');
-            if (el) el.textContent = h + ':' + m;
+        function compressImage(file, maxSizeKB, callback) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    var ctx = canvas.getContext('2d');
+                    var width = img.width;
+                    var height = img.height;
+                    var maxDimension = 800;
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = height * maxDimension / width;
+                            width = maxDimension;
+                        } else {
+                            width = width * maxDimension / height;
+                            height = maxDimension;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    var quality = 0.9;
+                    var dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    // 如果压缩后仍超过限制，逐步降低质量
+                    while (dataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+                        quality -= 0.05;
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    callback(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
-        updateLockStatusTime();
-        setInterval(updateLockStatusTime, 30000);
+
+        // ============================================================
+        //  锁屏：状态栏时间（已删除，替换为固定文字）
+        // ============================================================
 
         // ============================================================
         //  锁屏：纪念日逻辑
@@ -1528,7 +1558,7 @@
         }
 
         // ============================================================
-        //  锁屏：图片/头像上传
+        //  锁屏：图片/头像上传（带压缩）
         // ============================================================
         var lockFileInput = document.getElementById('lockFileInput');
         var lockCurrentTarget = null;
@@ -1573,12 +1603,11 @@
             lockFileInput.addEventListener('change', function() {
                 var file = this.files[0];
                 if (!file || !lockCurrentTarget) return;
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var imgData = e.target.result;
+                // 使用压缩
+                compressImage(file, 200, function(compressedDataUrl) {
                     lockCurrentTarget.innerHTML = '';
                     var img = document.createElement('img');
-                    img.src = imgData;
+                    img.src = compressedDataUrl;
                     img.alt = 'uploaded';
                     lockCurrentTarget.appendChild(img);
                     if (lockCurrentTarget.id === 'lockPostCenterImage') {
@@ -1598,18 +1627,33 @@
                             alert('❤️ 已收藏字卡');
                         });
                     }
-                };
-                reader.readAsDataURL(file);
+                });
                 this.value = '';
                 lockCurrentTarget = null;
             });
         }
 
         // ============================================================
-        //  锁屏：背景设置
+        //  锁屏：背景设置（带压缩）
         // ============================================================
         var lockBgLayer = document.getElementById('lockBgLayer');
         var lockBgFileInput = document.getElementById('lockBgFileInput');
+
+        if (lockBgFileInput) {
+            lockBgFileInput.addEventListener('change', function() {
+                var file = this.files[0];
+                if (!file) return;
+                compressImage(file, 200, function(compressedDataUrl) {
+                    if (lockBgLayer) {
+                        lockBgLayer.style.backgroundImage = 'url(' + compressedDataUrl + ')';
+                        lockBgLayer.style.backgroundSize = 'cover';
+                        lockBgLayer.style.backgroundPosition = 'center';
+                        lockBgLayer.classList.add('has-image');
+                    }
+                });
+                this.value = '';
+            });
+        }
 
         // ============================================================
         //  锁屏：播放按钮
@@ -1692,7 +1736,6 @@
             if (!isDragging) return;
             var x = e.clientX - dragOffsetX;
             var y = e.clientY - dragOffsetY;
-            // 限制在视口内
             x = Math.max(0, Math.min(window.innerWidth - backBtn.offsetWidth, x));
             y = Math.max(0, Math.min(window.innerHeight - backBtn.offsetHeight, y));
             backBtn.style.left = x + 'px';
@@ -1744,10 +1787,7 @@
         // 单击返回锁屏
         backBtn.addEventListener('click', function(e) {
             if (isDragging) return;
-            if (isDraggable) {
-                // 可拖动状态下单击不触发返回，防止误触
-                return;
-            }
+            if (isDraggable) return; // 可拖动状态下单击不触发返回
             // 返回锁屏
             if (lockScreenEl) lockScreenEl.style.display = 'flex';
             if (welcomeEl) welcomeEl.style.display = 'none';
@@ -1756,7 +1796,6 @@
             if (inputAreaEl) inputAreaEl.style.display = 'none';
             if (immersiveBtn) immersiveBtn.style.display = 'none';
             backBtn.style.display = 'none';
-            // 重置欢迎动画状态，以便下次解锁时重新播放
             var loaderBar = document.getElementById('loader-tech-bar');
             if (loaderBar) loaderBar.style.width = '0%';
         });
@@ -1764,12 +1803,9 @@
         // 解锁逻辑
         if (lockUnlockBtn) {
             lockUnlockBtn.addEventListener('click', function() {
-                // 1. 隐藏锁屏
                 if (lockScreenEl) lockScreenEl.style.display = 'none';
-                // 2. 显示欢迎动画
                 if (welcomeEl) {
                     welcomeEl.style.display = 'flex';
-                    // 触发加载动画
                     var loaderBar = document.getElementById('loader-tech-bar');
                     if (loaderBar) {
                         loaderBar.style.width = '0%';
@@ -1779,7 +1815,6 @@
                             if (progress >= 100) {
                                 progress = 100;
                                 clearInterval(interval);
-                                // 加载完成，进入聊天
                                 setTimeout(function() {
                                     if (welcomeEl) welcomeEl.style.display = 'none';
                                     if (headerEl) headerEl.style.display = 'flex';
@@ -1787,7 +1822,6 @@
                                     if (inputAreaEl) inputAreaEl.style.display = 'block';
                                     if (immersiveBtn) immersiveBtn.style.display = 'flex';
                                     backBtn.style.display = 'flex';
-                                    // 初始化聊天
                                     if (typeof initApp === 'function') initApp();
                                 }, 400);
                             }
@@ -1824,18 +1858,17 @@
             if (inputAreaEl) inputAreaEl.style.display = 'none';
             if (immersiveBtn) immersiveBtn.style.display = 'none';
             backBtn.style.display = 'none';
-            // 设置返回图标初始位置
             backBtn.style.right = '20px';
             backBtn.style.bottom = '100px';
             backBtn.style.left = 'auto';
             backBtn.style.top = 'auto';
-            console.log('🔒 锁屏已加载，欢迎动画和聊天内容已隐藏');
+            console.log('🔒 锁屏已加载');
         });
 
         console.log('🔐 锁屏字卡已加载 · 点击「解锁」进入聊天');
 
         // ============================================================
-        //  暴露返回图标控制（供外部调用）
+        //  暴露返回图标控制
         // ============================================================
         window._backFloatBtn = backBtn;
         window._showBackBtn = function() { backBtn.style.display = 'flex'; };
